@@ -53,6 +53,14 @@ let progress = ref(0)
 let progressText = ref('')
 
 async function closeDevice() {
+  if (flasher) {
+    try {
+      await flasher.close()
+    } catch (error) {
+    }
+    flasher = null
+    device = null
+  }
   if (device != null) {
     try {
       await device.close()
@@ -122,6 +130,11 @@ async function connect() {
   }
 }
 
+async function another() {
+  await closeDevice()
+  await connect()
+}
+
 async function reset() {
   await closeDevice()
   resetState()
@@ -135,13 +148,13 @@ async function flash() {
       progressText.value = (fileIndex + 1) + ' of ' + (files.firmwareFiles.length)
       progress.value = Math.round(written / total * 100)
     })
-    if (device != null) {
-      await device.close()
-    }
+    await flasher.close()
+    flasher = null
     device = null
     flashComplete.value = true
     step.value++
   } catch (e) {
+    console.log(e)
     failed.value = true
   }
 }
@@ -207,7 +220,7 @@ async function flash() {
         <VContainer>
           <VRow>
             <VCol>
-              <VBtn v-if="flashComplete" @click="closeDevice" color="primary">Flash Another</VBtn>
+              <VBtn v-if="flashComplete" @click="another" color="primary">Flash Another</VBtn>
             </VCol>
             <VCol>
               <VBtn v-if="flashComplete" @click="reset" color="secondary">Back to Start</VBtn>

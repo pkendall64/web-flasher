@@ -132,4 +132,8 @@ export class ESPFlasher {
                 }
             })
     }
+
+    close = async () => {
+        await this.esploader.transport.disconnect()
+    }
 }
