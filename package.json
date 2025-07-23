@@ -10,15 +10,15 @@
   },
   "dependencies": {
     "@mdi/font": "7.4.47",
-    "@zip.js/zip.js": "^2.7.63",
+    "@zip.js/zip.js": "^2.7.68",
     "bluejay-rtttl-parse": "^2.0.2",
     "crypto-js": "^4.2.0",
     "esptool-js": "^0.5.6",
     "file-saver": "^2.0.5",
     "pako": "^2.1.0",
     "roboto-fontface": "*",
-    "vue": "^3.5.17",
-    "vuetify": "^3.9.0"
+    "vue": "^3.5.18",
+    "vuetify": "^3.9.2"
   },
   "devDependencies": {
     "@types/file-saver": "^2.0.7",
@@ -26,7 +26,7 @@
     "@types/w3c-web-serial": "^1.0.8",
     "@vitejs/plugin-vue": "^6.0.0",
     "sass": "1.89.2",
-    "unplugin-fonts": "^1.3.1",
+    "unplugin-fonts": "^1.4.0",
     "unplugin-vue-components": "^28.8.0",
     "vite-plugin-pwa": "^1.0.1",
     "vite-plugin-vuetify": "^2.1.1"
