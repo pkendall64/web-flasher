@@ -13,11 +13,10 @@
   },
   "dependencies": {
     "elrs-firmware-config": "file:packages/elrs-firmware-config",
+    "elrs-flasher": "file:packages/elrs-flasher",
     "@mdi/font": "7.4.47",
     "@zip.js/zip.js": "^2.8.22",
     "bluejay-rtttl-parse": "^2.0.2",
-    "crypto-js": "^4.2.0",
-    "esptool-js": "^0.5.7",
     "file-saver": "^2.0.5",
     "pako": "^2.1.0",
     "roboto-fontface": "*",

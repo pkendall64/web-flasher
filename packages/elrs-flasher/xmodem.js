@@ -1,6 +1,6 @@
 import {TransportEx} from './serialex.js'
 import {Bootloader, Passthrough} from './passthrough.js'
-import {MismatchError, PassthroughError} from "./error.js";
+import {MismatchError, PassthroughError} from "./errors.js";
 
 const log = {
     info: function () {

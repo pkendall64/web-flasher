@@ -1,0 +1,13 @@
+{
+  "name": "elrs-flasher",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "dependencies": {
+    "crypto-js": "^4.2.0",
+    "esptool-js": "^0.5.7"
+  }
+}

@@ -1,7 +1,7 @@
 <script setup>
 import {ref, watch, watchPostEffect} from 'vue';
 import {store} from '../js/state';
-import {compareSemanticVersions} from '../js/version';
+import {compareSemanticVersions} from 'elrs-firmware-config';
 
 let firmware = ref(null);
 let flashBranch = ref(false);

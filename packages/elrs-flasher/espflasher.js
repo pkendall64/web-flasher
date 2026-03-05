@@ -2,7 +2,7 @@ import {TransportEx} from './serialex.js'
 import {CustomReset, ESPLoader} from 'esptool-js'
 import {Passthrough} from './passthrough.js'
 import CryptoJS from 'crypto-js'
-import {MismatchError, WrongMCU} from "./error.js";
+import {MismatchError, WrongMCU} from "./errors.js";
 
 export class ESPFlasher {
     constructor(device, type, method, config, options, firmwareUrl, term) {

@@ -1,4 +1,4 @@
-import {MismatchError, PassthroughError} from './error.js'
+import {MismatchError, PassthroughError} from './errors.js'
 
 export class Bootloader {
     static INIT_SEQ = {
