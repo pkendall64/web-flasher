@@ -14,8 +14,8 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see https://www.gnu.org/licenses/.
 -->
-<script setup>
-import {hasFeature, store} from "../js/state.js";
+<script setup lang="ts">
+import { hasFeature, store } from '../js/state';
 import FanRuntime from "./FanRuntime.vue";
 import MelodyInput from "./MelodyInput.vue";
 </script>

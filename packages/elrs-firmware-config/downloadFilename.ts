@@ -5,20 +5,14 @@
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, version 3 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import type { FirmwareContext } from './types.js'
+
 /**
- * Version for filename: use display version (e.g. "3.5.3"). Ensures v-prefix for semantic versions.
+ * Normalize version for filename: use display version (e.g. "3.5.3"). Ensures v-prefix for semantic versions.
  */
-function normalizeVersion(context) {
+function normalizeVersion(context: FirmwareContext): string {
     const label = context.versionLabel
     if (label) {
         const s = String(label).trim()
@@ -30,7 +24,7 @@ function normalizeVersion(context) {
 /**
  * Sanitize a segment for use in filename (alphanumeric, dot, hyphen, underscore only).
  */
-function sanitize(s) {
+function sanitize(s: string | null | undefined): string {
     if (s == null || s === '') return ''
     return String(s).replace(/[^a-zA-Z0-9._-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || ''
 }
@@ -38,7 +32,7 @@ function sanitize(s) {
 /**
  * Derive config summary label: default, bindphrase, or custom.
  */
-function getConfigLabel(context) {
+function getConfigLabel(context: FirmwareContext): string {
     const opts = context.options || {}
     if (opts.uid) return 'bindphrase'
     if (opts.ssid) return 'custom'
@@ -57,7 +51,7 @@ function getConfigLabel(context) {
 /**
  * Dotted path into targets: vendor.radio.target (firmware) or vendor.target (backpack).
  */
-function getTargetDottedPath(context) {
+function getTargetDottedPath(context: FirmwareContext): string {
     const t = context.target
     if (!t) return ''
     if (context.firmwareType === 'backpack') {
@@ -67,11 +61,14 @@ function getTargetDottedPath(context) {
 }
 
 /**
- * @param {string} ext - File extension including leading dot if desired, e.g. '.bin.gz' or 'zip'
- * @param {object} context - { versionLabel, target, options, firmwareType }
- * @returns {string} Filename for the download
+ * Build a download filename from context (e.g. "ELRS-v3.5.3-vendor.radio.target-FCC-default.bin.gz").
+ *
+ * @param ext - File extension including leading dot if desired, e.g. '.bin.gz' or 'zip'
+ * @param context - Context with versionLabel, target, options, firmwareType
+ * @returns Filename for the download
  */
-export function getDownloadFilename(ext = '.bin.gz', context) {
+export function getDownloadFilename(ext: string = '.bin.gz', context?: FirmwareContext): string {
+    if (!context) return 'ELRS-unknown-target-FCC-default' + ext
     const version = normalizeVersion(context)
     const target = sanitize(getTargetDottedPath(context)) || 'target'
     const region = context.firmwareType === 'backpack' ? '' : (sanitize(context.options?.region) || 'FCC')

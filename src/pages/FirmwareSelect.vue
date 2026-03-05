@@ -14,17 +14,16 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see https://www.gnu.org/licenses/.
 -->
-<script setup>
+<script setup lang="ts">
 import {store} from '../js/state';
 import HoverCard from '../components/HoverCard.vue';
 
-const emit = defineEmits(['onClick']);
+const emit = defineEmits<{ (e: 'onClick'): void }>();
 
-// Set firmware and targetType in state store, then update page to pages selection page
-function setFirmware(firmware, targetType) {
-  store.firmware = firmware;
-  store.targetType = targetType;
-  emit('onClick');
+function setFirmware(firmware: 'firmware' | 'backpack', targetType: string) {
+  store.firmware = firmware
+  store.targetType = targetType
+  emit('onClick')
 }
 </script>
 

@@ -5,15 +5,14 @@
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, version 3 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+
+import type { FirmwareContext } from './types.js'
+
+export interface BuildFirmwareUrlResult {
+    folder: string
+    firmwareUrl: string
+}
 
 /**
  * Build folder and firmware URL from context.
@@ -22,10 +21,10 @@
  * - Backpack:  {baseUrl}/backpack, {baseUrl}/backpack/{version}/{config.firmware}/firmware.bin
  * Layout/logo in Configure.download use: {folder}/hardware/{deviceType}/{layout_file}, {folder}/hardware/logo/{logo_file}
  *
- * @param {object} context - { baseUrl, version, firmwareType, target: { config }, options: { region } }
- * @returns {{ folder: string, firmwareUrl: string }}
+ * @param context - Context with baseUrl, version, firmwareType, target.config, options.region
+ * @returns Folder path and full firmware URL
  */
-export function buildFirmwareUrl(context) {
+export function buildFirmwareUrl(context: FirmwareContext): BuildFirmwareUrlResult {
     const { baseUrl, version, firmwareType, target, options } = context
     const base = (baseUrl || '').replace(/\/$/, '')
     const config = target?.config || {}
@@ -36,7 +35,6 @@ export function buildFirmwareUrl(context) {
         return { folder, firmwareUrl }
     }
 
-    // firmware (TX/RX)
     const folder = `${base}/firmware`
     const region = (options?.region || 'FCC')
     const firmwarePath = config.firmware || 'firmware'

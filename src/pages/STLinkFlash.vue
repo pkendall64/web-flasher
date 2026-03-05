@@ -14,14 +14,17 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see https://www.gnu.org/licenses/.
 -->
-<script setup>
-import {ref, watchPostEffect} from "vue";
-import {contextFromStore, resetState, store} from "../js/state.js";
-import {generateFirmware} from "elrs-firmware-config";
-import {STLink} from "elrs-flasher";
+<script setup lang="ts">
+import { ref, watchPostEffect } from 'vue'
+import { contextFromStore, resetState, store } from '../js/state'
+import { generateFirmware } from 'elrs-firmware-config'
+import type { FirmwareFile, TargetConfig } from 'elrs-firmware-config'
+import { STLink } from 'elrs-flasher'
+import type { STLink as STLinkClass } from 'elrs-flasher'
+import type { STLinkConfig } from 'elrs-flasher'
 
-let term = {
-  write: (e) => {
+const term = {
+  write: (e: string) => {
     if (newline) {
       log.value.push(e)
     } else {
@@ -29,10 +32,10 @@ let term = {
     }
     newline = false
   },
-  writeln: (e) => {
+  writeln: (e: string) => {
     log.value.push(e)
     newline = true
-  }
+  },
 }
 
 watchPostEffect(async (onCleanup) => {
@@ -43,37 +46,45 @@ watchPostEffect(async (onCleanup) => {
   }
 })
 
-const files = {
+const files: {
+  firmwareFiles: FirmwareFile[]
+  config: TargetConfig | null
+  firmwareUrl: string
+  options: Record<string, unknown>
+  deviceType: string | null
+  radioType: string | undefined
+  txType: string | undefined
+} = {
   firmwareFiles: [],
   config: null,
   firmwareUrl: '',
   options: {},
   deviceType: null,
   radioType: undefined,
-  txType: undefined
+  txType: undefined,
 }
 
 async function buildFirmware() {
-  const [binary, {config, firmwareUrl, options, deviceType, radioType, txType}] = await generateFirmware(contextFromStore())
+  const [binary, { config, firmwareUrl, options, deviceType, radioType, txType }] = await generateFirmware(contextFromStore())
 
   files.firmwareFiles = binary
-  files.firmwareUrl = firmwareUrl
-  files.config = config
-  files.options = options
-  files.deviceType = deviceType
-  files.radioType = radioType
-  files.txType = txType
+  files.firmwareUrl = firmwareUrl ?? ''
+  files.config = config ?? null
+  files.options = options ?? {}
+  files.deviceType = deviceType ?? null
+  files.radioType = radioType ?? undefined
+  files.txType = txType ?? undefined
 }
 
 let step = ref(1)
 let enableFlash = ref(false)
 let flashComplete = ref(false)
 let failed = ref(false)
-let log = ref([])
+let log = ref<string[]>([])
 let newline = false
 
 let noDevice = ref(false)
-let device = null;
+let device: STLinkClass | null = null
 
 let progress = ref(0)
 let progressText = ref('')
@@ -95,13 +106,19 @@ async function closeDevice() {
 }
 
 async function connect() {
+  const target = store.target
+  const config = target?.config
+  if (!config || !('stlink' in config)) {
+    term.writeln('No STLink target selected')
+    return
+  }
   try {
     if (device) await closeDevice()
     device = new STLink(term)
-    await device.connect(store.target.config, async () => {
+    await device.connect(config as STLinkConfig, async () => {
       await closeDevice()
     })
-  } catch (e) {
+  } catch (e: unknown) {
     console.log(e)
     term.writeln('Failed to connect to device, restart device and try again')
     failed.value = true
@@ -120,12 +137,14 @@ function reset() {
 
 async function flash() {
   step.value++
+  const dev = device
+  if (!dev) return
   try {
-    await device.flash(files.firmwareFiles, undefined, (fileIndex, written, total, msg) => {
-      progressText.value = (fileIndex + 1) + ' of ' + (files.firmwareFiles.length) + ' (' + msg + ')'
+    await dev.flash(files.firmwareFiles, undefined, (fileIndex: number, written: number, total: number, msg?: string) => {
+      progressText.value = (fileIndex + 1) + ' of ' + (files.firmwareFiles.length) + (msg ? ' (' + msg + ')' : '')
       progress.value = Math.round(written / total * 100)
     })
-    await device.close()
+    await dev.close()
     device = null
     flashComplete.value = true
     step.value++

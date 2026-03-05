@@ -5,32 +5,39 @@
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, version 3 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 import { Configure } from './configure.js'
 import { buildFirmwareUrl } from './urls.js'
 import { MelodyParser } from './melody.js'
+import type {
+    FirmwareContext,
+    GetSettingsResult,
+    ConfigureOptions,
+    FirmwareFile,
+    GenerateFirmwareMetadata,
+    TargetConfig,
+} from './types.js'
 
 /**
- * @param {string} deviceType - 'TX' | 'RX' or backpack type
- * @param {object} context - { baseUrl, version, firmwareType, targetType, radio, target, options }
- * @returns {Promise<{ config, firmwareUrl, folder, options }>}
+ * Get settings and options for the given device type and context.
+ * Builds firmware URL and option payload (flash-discriminator, melody, etc.).
+ *
+ * @param deviceType - 'TX' | 'RX' or backpack type
+ * @param context - Context with baseUrl, version, target, options
+ * @returns Config, folder, firmwareUrl, and options for Configure.download
+ *
+ * @example
+ * const { config, firmwareUrl, folder, options } = await getSettings('TX', context)
+ * const files = await Configure.download(folder, context.version, 'TX', undefined, radioType, config, firmwareUrl, options)
  */
-export async function getSettings(deviceType, context) {
-    const options = {
-        'flash-discriminator': Math.floor(Math.random() * ((2 ** 31) - 2) + 1)
+export async function getSettings(deviceType: string, context: FirmwareContext): Promise<GetSettingsResult> {
+    const options: ConfigureOptions = {
+        'flash-discriminator': Math.floor(Math.random() * ((2 ** 31) - 2) + 1),
     }
 
     const { target, options: opts } = context
-    const config = target?.config || {}
+    const config: TargetConfig = target?.config ?? { platform: '', firmware: undefined }
 
     if (opts?.uid) {
         options.uid = opts.uid
@@ -83,13 +90,21 @@ export async function getSettings(deviceType, context) {
 }
 
 /**
- * @param {object} context - { baseUrl, version, firmwareType, targetType, radio, target, options }
- * @returns {Promise<[Array<{ data: Uint8Array, address: number }>, object]>} [firmwareFiles, metadata]
+ * Generate firmware files and metadata for the given context.
+ *
+ * @param context - Context with version, targetType, radio, target, options, firmwareType
+ * @returns Tuple of [firmwareFiles, metadata]
+ *
+ * @example
+ * const [files, metadata] = await generateFirmware(context)
+ * const filename = getDownloadFilename('.bin.gz', context)
  */
-export async function generateFirmware(context) {
-    let deviceType = context.targetType
-    let radioType = null
-    let txType = null
+export async function generateFirmware(
+    context: FirmwareContext
+): Promise<[FirmwareFile[], GenerateFirmwareMetadata]> {
+    let deviceType = context.targetType ?? ''
+    let radioType: string | null = null
+    let txType: string | undefined
 
     if (context.firmwareType === 'firmware') {
         deviceType = context.targetType === 'tx' ? 'TX' : 'RX'
@@ -113,6 +128,6 @@ export async function generateFirmware(context) {
     )
     return [
         firmwareFiles,
-        { config, firmwareUrl, options, deviceType, radioType, txType }
+        { config, firmwareUrl, options, deviceType, radioType, txType },
     ]
 }

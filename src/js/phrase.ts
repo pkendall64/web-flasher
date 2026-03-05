@@ -15,31 +15,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import '@mdi/font/css/materialdesignicons.css'
-import 'vuetify/styles'
+import CryptoJS from 'crypto-js'
 
-import {createApp} from 'vue'
-import {createVuetify} from 'vuetify'
-import * as vertical from 'vuetify/labs/VStepperVertical'
-
-import './main.css'
-import App from './App.vue'
-
-const vuetify = createVuetify({
-    components: {...vertical},
-    theme: {
-        defaultTheme: 'light'
-    },
-    defaults: {
-        global: {
-            density: "compact",
-        },
-        VBtn: {
-            density: "default"
-        }
-    }
-})
-
-createApp(App)
-    .use(vuetify)
-    .mount('#app')
+/**
+ * Convert binding phrase text to 6-byte UID for firmware.
+ * Uses the same format as ExpressLRS: MD5(-DMY_BINDING_PHRASE="phrase") and take the first 6 bytes.
+ */
+export function uidBytesFromText(text: string): Uint8Array {
+  const bindingPhraseFull = `-DMY_BINDING_PHRASE="${text}"`
+  const wordArray = CryptoJS.MD5(bindingPhraseFull) as CryptoJS.lib.WordArray
+  const out = new Uint8Array(6)
+  for (let i = 0; i < 6; i++) {
+    const word = wordArray.words[i >>> 2] ?? 0
+    out[i] = (word >>> (24 - (i % 4) * 8)) & 0xff
+  }
+  return out
+}

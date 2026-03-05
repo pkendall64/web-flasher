@@ -5,24 +5,18 @@
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, version 3 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import {TransportEx} from './serialex.js'
-import {Bootloader, Passthrough} from './passthrough.js'
-import {MismatchError, PassthroughError} from "./errors.js";
+import { TransportEx } from './serialex.js'
+import { Bootloader, Passthrough } from './passthrough.js'
+import { MismatchError, PassthroughError } from './errors.js'
+import type { Terminal } from './types.js'
+import type { ProgressCallback } from './types.js'
+import type { FirmwareChunk } from './types.js'
 
 const log = {
-    info: function () {
-    }, warn: function () {
-    }
+    info: (_: unknown) => {},
+    warn: (_: unknown) => {},
 }
 
 const SOH = 0x01
@@ -32,27 +26,37 @@ const NAK = 0x15
 const FILLER = 0x1A
 const CRC_MODE = 0x43 // 'C'
 
+/** Device with readable/writable streams (e.g. SerialPort). */
+interface XmodemDevice {
+    readable: ReadableStream<Uint8Array>
+    writable: WritableStream<Uint8Array>
+}
+
+interface XmodemLogger {
+    log(str: string): void
+}
+
 class Xmodem {
-    XMODEM_OP_MODE = 'crc'
+    XMODEM_OP_MODE: 'crc' | 'normal' = 'crc'
     XMODEM_START_BLOCK = 1
     block_size = 128
+    device: XmodemDevice
+    logger: XmodemLogger
 
-    constructor(device, logger) {
+    constructor(device: XmodemDevice, logger: XmodemLogger) {
         this.device = device
         this.logger = logger
     }
 
-    emit = (msg, obj) => {
-        console.log(`${msg}: ${obj}`)
+    emit = (_msg: string, _obj: unknown): void => {
+        console.log(`${_msg}: ${_obj}`)
     }
 
-    crc16xmodem = function (buf) {
+    crc16xmodem(buf: Uint8Array): number {
         let crc = 0x0
-
         for (let index = 0; index < buf.length; index++) {
             const byte = buf[index]
             let code = (crc >>> 8) & 0xff
-
             code ^= byte & 0xff
             code ^= code >>> 4
             crc = (crc << 8) & 0xffff
@@ -62,57 +66,46 @@ class Xmodem {
             code = (code << 7) & 0xffff
             crc ^= code
         }
-
         return crc
     }
 
-    send = async (dataBuffer, progress) => {
+    send = async (dataBuffer: Uint8Array, progress: ProgressCallback): Promise<void> => {
         const _self = this
-        const packagedBuffer = []
+        const packagedBuffer: (Uint8Array | string)[] = []
         let blockNumber = this.XMODEM_START_BLOCK
         let sentEof = false
+        let buffer = dataBuffer
 
-        log.info(dataBuffer.length)
+        log.info(buffer.length)
 
-        // FILLER
         for (let i = 0; i < this.XMODEM_START_BLOCK; i++) {
             packagedBuffer.push('')
         }
 
-        while (dataBuffer.length > 0) {
-            const chunk = dataBuffer.slice(0, this.block_size)
+        while (buffer.length > 0) {
+            const chunk = buffer.slice(0, this.block_size)
             const currentBlock = new Uint8Array(this.block_size)
             currentBlock.set(chunk, 0)
             for (let i = chunk.length; i < this.block_size; i++) {
                 currentBlock[i] = FILLER
             }
-            dataBuffer = dataBuffer.slice(this.block_size)
+            buffer = buffer.slice(this.block_size)
             packagedBuffer.push(currentBlock)
         }
 
         let sending = true
 
-        _self.emit('ready', packagedBuffer.length - 1) // We don't count the filler
+        _self.emit('ready', packagedBuffer.length - 1)
 
-        const sendBlock = this.sendBlock
-        const write = this.write
-        const sendData = async (data) => {
-            /*
-             * Here we handle the beginning of the transmission
-             * The receiver initiates the transfer by either calling
-             * checksum mode or CRC mode.
-             */
+        const sendBlock = this.sendBlock.bind(this)
+        const write = this.write.bind(this)
+        const sendData = async (data: Uint8Array): Promise<void> => {
             if (data[0] === CRC_MODE && blockNumber === _self.XMODEM_START_BLOCK) {
                 log.info('[SEND] - received C byte for CRC transfer!')
                 _self.XMODEM_OP_MODE = 'crc'
                 if (packagedBuffer.length > blockNumber) {
-                    /*
-                     * Transmission Start event. A successful start of transmission.
-                     * @event Xmodem#start
-                     * @property {string} - Indicates transmission mode 'crc' or 'normal'
-                     */
                     _self.emit('start', _self.XMODEM_OP_MODE)
-                    await sendBlock(blockNumber, packagedBuffer[blockNumber], _self.XMODEM_OP_MODE)
+                    await sendBlock(blockNumber, packagedBuffer[blockNumber] as Uint8Array, _self.XMODEM_OP_MODE)
                     _self.emit('send', blockNumber)
                     blockNumber++
                 }
@@ -121,36 +114,29 @@ class Xmodem {
                 _self.XMODEM_OP_MODE = 'normal'
                 if (packagedBuffer.length > blockNumber) {
                     _self.emit('start', _self.XMODEM_OP_MODE)
-                    await sendBlock(blockNumber, packagedBuffer[blockNumber], _self.XMODEM_OP_MODE)
+                    await sendBlock(blockNumber, packagedBuffer[blockNumber] as Uint8Array, _self.XMODEM_OP_MODE)
                     _self.emit('send', blockNumber)
                     blockNumber++
                 }
             } else if (data[0] === ACK && blockNumber > _self.XMODEM_START_BLOCK) {
-                /*
-                 * Here we handle the actual transmission of data and
-                 * retransmission in case the block was not accepted.
-                 */
-                // Woohooo we are ready to send the next block! :)
                 log.info('ACK RECEIVED')
                 _self.emit('recv', 'ACK')
                 if (packagedBuffer.length > blockNumber) {
-                    await sendBlock(blockNumber, packagedBuffer[blockNumber], _self.XMODEM_OP_MODE)
+                    await sendBlock(blockNumber, packagedBuffer[blockNumber] as Uint8Array, _self.XMODEM_OP_MODE)
                     _self.emit('send', blockNumber)
                     blockNumber++
                     if (blockNumber % 10 === 0) {
-                        const percent = Math.floor(blockNumber * 100 / packagedBuffer.length)
+                        const percent = Math.floor((blockNumber * 100) / packagedBuffer.length)
                         progress(1, percent, 100)
                         _self.logger.log(`${percent}% uploaded...`)
                     }
                 } else if (packagedBuffer.length === blockNumber) {
-                    // We are EOT
                     if (sentEof === false) {
                         sentEof = true
                         log.info('WE HAVE RUN OUT OF STUFF TO SEND, EOT EOT!')
                         _self.emit('send', 'EOT')
                         await write(new Uint8Array([EOT]))
                     } else {
-                        // We are finished!
                         log.info('[SEND] - Finished!')
                         _self.emit('stop', 0)
                         progress(1, 100, 100)
@@ -167,7 +153,7 @@ class Xmodem {
                     _self.emit('recv', 'NAK')
                     blockNumber--
                     if (packagedBuffer.length > blockNumber) {
-                        await sendBlock(blockNumber, packagedBuffer[blockNumber], _self.XMODEM_OP_MODE)
+                        await sendBlock(blockNumber, packagedBuffer[blockNumber] as Uint8Array, _self.XMODEM_OP_MODE)
                         _self.emit('send', blockNumber)
                         blockNumber++
                     }
@@ -181,23 +167,21 @@ class Xmodem {
             }
         }
 
-        // eslint-disable-next-line no-unmodified-loop-condition
         while (sending) {
             const reader = this.device.readable.getReader()
-            // PAK need a timeout and handler
-            const {value, done} = await reader.read()
+            const { value, done } = await reader.read()
             if (done) {
                 reader.releaseLock()
                 throw new Error('cancelled')
             }
             reader.releaseLock()
-            await sendData(value)
+            await sendData(value!)
         }
         this.logger.log('Flash complete!')
     }
 
-    sendBlock = async (blockNr, blockData, mode) => {
-        function _appendBuffer(buffer1, buffer2) {
+    sendBlock = async (blockNr: number, blockData: Uint8Array, mode: 'crc' | 'normal'): Promise<void> => {
+        function _appendBuffer(buffer1: Uint8Array, buffer2: Uint8Array): Uint8Array {
             const tmp = new Uint8Array(buffer1.byteLength + buffer2.byteLength)
             tmp.set(buffer1, 0)
             tmp.set(buffer2, buffer1.byteLength)
@@ -205,16 +189,14 @@ class Xmodem {
         }
 
         let crcCalc = 0
-        let sendBuffer = _appendBuffer(new Uint8Array([SOH, blockNr, (0xFF - blockNr)]), blockData)
+        let sendBuffer = _appendBuffer(new Uint8Array([SOH, blockNr, 0xff - blockNr]), blockData)
         log.info('SENDBLOCK! Data length: ' + blockData.byteLength)
-        log.info(sendBuffer)
         if (mode === 'crc') {
             const crc = this.crc16xmodem(blockData)
             sendBuffer = _appendBuffer(sendBuffer, new Uint8Array([(crc >>> 8) & 0xff, crc & 0xff]))
         } else {
-            // Count only the blockData into the checksum
             for (let i = 3; i < sendBuffer.byteLength; i++) {
-                crcCalc = crcCalc + sendBuffer.readUInt8(i)
+                crcCalc = crcCalc + sendBuffer[i]
             }
             crcCalc = crcCalc % 256
             sendBuffer = _appendBuffer(sendBuffer, new Uint8Array([crcCalc]))
@@ -223,15 +205,41 @@ class Xmodem {
         await this.write(sendBuffer)
     }
 
-    write = async (buf) => {
+    write = async (buf: Uint8Array): Promise<void> => {
         const writer = this.device.writable.getWriter()
-        await writer.write(buf.buffer)
+        await writer.write(buf)
         writer.releaseLock()
     }
 }
 
+/** Config slice for Xmodem flasher (firmware name). */
+export interface XmodemFlasherConfig {
+    firmware: string
+}
+
+/**
+ * Xmodem-based flasher for CRSF/GHST bootloader (e.g. STM32 RX).
+ */
 export class XmodemFlasher {
-    constructor(device, deviceType, method, config, options, firmwareUrl, terminal) {
+    device: XmodemDevice
+    config: XmodemFlasherConfig
+    options: unknown
+    firmwareUrl: string
+    terminal: Terminal
+    xmodem: Xmodem
+    transport!: TransportEx
+    passthrough!: Passthrough
+    init_seq1!: Uint8Array
+
+    constructor(
+        device: XmodemDevice,
+        _deviceType: string,
+        _method: string,
+        config: XmodemFlasherConfig,
+        options: unknown,
+        firmwareUrl: string,
+        terminal: Terminal
+    ) {
         this.device = device
         this.config = config
         this.options = options
@@ -240,29 +248,29 @@ export class XmodemFlasher {
         this.xmodem = new Xmodem(this.device, this)
     }
 
-    _sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms))
+    _sleep(ms: number): Promise<void> {
+        return new Promise((resolve) => setTimeout(resolve, ms))
     }
 
-    log(str) {
+    log(str: string): void {
         this.terminal.writeln(str)
     }
 
-    connect = async () => {
+    connect = async (): Promise<string> => {
         if (this.config.firmware.startsWith('GHOST')) {
             this.init_seq1 = Bootloader.get_init_seq('GHST')
         } else {
             this.init_seq1 = Bootloader.get_init_seq('CRSF')
         }
 
-        this.transport = new TransportEx(this.device, true)
+        this.transport = new TransportEx(this.device as unknown as SerialPort, true)
         await this.transport.connect(420000)
         this.passthrough = new Passthrough(this.transport, this.terminal, this.config.firmware, 420000)
         await this.startBootloader()
         return 'XModem Flasher'
     }
 
-    startBootloader = async (force = false) => {
+    startBootloader = async (force: boolean = false): Promise<void> => {
         this.transport.set_delimiters(['CCC'])
         const data = await this.transport.read_line(2000)
         let gotBootloader = data.endsWith('CCC')
@@ -270,8 +278,8 @@ export class XmodemFlasher {
             let delaySeq2 = 500
             await this.passthrough.betaflight()
             this.transport.set_delimiters(['CCC'])
-            const data = await this.transport.read_line(2000)
-            gotBootloader = data.endsWith('CCC')
+            const data2 = await this.transport.read_line(2000)
+            gotBootloader = data2.endsWith('CCC')
             if (!gotBootloader) {
                 this.transport.set_delimiters(['\n', 'CCC'])
                 let currAttempt = 0
@@ -300,7 +308,7 @@ export class XmodemFlasher {
                         }
 
                         const versionMatch = line.match(/=== (?<version>[vV].*) ===/)
-                        if (versionMatch && versionMatch.groups && versionMatch.groups.version) {
+                        if (versionMatch?.groups?.version) {
                             this.log(`Bootloader version found : '${versionMatch.groups.version}'`)
                         } else if (line.indexOf('hold down button') !== -1) {
                             await this._sleep(delaySeq2)
@@ -312,7 +320,6 @@ export class XmodemFlasher {
                             break
                         } else if (line.indexOf('_RX_') !== -1) {
                             const flashTarget = this.config.firmware.toUpperCase()
-
                             if (line.trim() !== flashTarget && !force) {
                                 this.log(`Wrong target selected your RX is '${line.trim()}', trying to flash '${flashTarget}'`)
                                 throw new MismatchError()
@@ -325,8 +332,8 @@ export class XmodemFlasher {
                 this.log(`Got into bootloader after: ${currAttempt} attempts`)
                 this.log('Waiting for sync...')
                 this.transport.set_delimiters(['CCC'])
-                const data = await this.transport.read_line(15000)
-                if (data.indexOf('CCC') === -1) {
+                const data3 = await this.transport.read_line(15000)
+                if (data3.indexOf('CCC') === -1) {
                     this.log('[FAILED] Unable to communicate with bootloader...')
                     throw new PassthroughError()
                 }
@@ -335,9 +342,14 @@ export class XmodemFlasher {
         }
     }
 
-    flash = async (binary, force = false, progress) => {
-        await this.startBootloader(true);
+    flash = async (
+        binary: FirmwareChunk[],
+        force: boolean = false,
+        progress?: ProgressCallback
+    ): Promise<void> => {
+        await this.startBootloader(true)
         this.log('Beginning flash...')
-        return this.xmodem.send(binary[0].data, progress)
+        const prog = progress ?? (() => {})
+        return this.xmodem.send(binary[0].data, prog)
     }
 }

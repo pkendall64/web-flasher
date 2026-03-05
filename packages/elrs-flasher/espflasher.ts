@@ -5,24 +5,43 @@
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, version 3 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import {TransportEx} from './serialex.js'
-import {CustomReset, ESPLoader} from 'esptool-js'
-import {Passthrough} from './passthrough.js'
+import { TransportEx } from './serialex.js'
+import { CustomReset, ESPLoader, type After, type Before } from 'esptool-js'
+import { Passthrough } from './passthrough.js'
 import CryptoJS from 'crypto-js'
-import {MismatchError, WrongMCU} from "./errors.js";
+import { MismatchError, WrongMCU } from './errors.js'
+import type { Terminal } from './types.js'
+import type { ESPFlasherConfig } from './types.js'
+import type { FirmwareChunk } from './types.js'
 
+export type FlasherMethod = 'uart' | 'betaflight' | 'etx' | 'passthru'
+export type FlasherDeviceType = 'TX' | 'RX' | string
+
+/**
+ * ESP (ESP8266/ESP32) flasher using esptool-js with passthrough support (Betaflight, EdgeTX, UART).
+ */
 export class ESPFlasher {
-    constructor(device, type, method, config, options, firmwareUrl, term) {
+    device: SerialPort
+    type: FlasherDeviceType
+    method: FlasherMethod
+    config: ESPFlasherConfig
+    options: unknown
+    firmwareUrl: string
+    term: Terminal
+    mainFirmware: boolean
+    esploader!: ESPLoader
+
+    constructor(
+        device: SerialPort,
+        type: FlasherDeviceType,
+        method: FlasherMethod,
+        config: ESPFlasherConfig,
+        options: unknown,
+        firmwareUrl: string,
+        term: Terminal
+    ) {
         this.device = device
         this.type = type
         this.method = method
@@ -33,10 +52,10 @@ export class ESPFlasher {
         this.mainFirmware = type === 'TX' || type === 'RX'
     }
 
-    connect = async () => {
-        let mode = 'default_reset'
+    connect = async (): Promise<string> => {
+        let mode: string = 'default_reset'
         let baudrate = 460800
-        let initbaud
+        let initbaud: number | undefined
         if (this.method === 'betaflight') {
             baudrate = 420000
             mode = 'no_reset'
@@ -58,27 +77,28 @@ export class ESPFlasher {
 
         const transport = new TransportEx(this.device, false)
         const terminal = {
-            clean: () => {
-            },
-            writeLine: (data) => this.term.writeln(data),
-            write: (data) => this.term.write(data)
+            clean: () => {},
+            writeLine: (data: string) => this.term.writeln(data),
+            write: (data: string) => this.term.write?.(data),
         }
         this.esploader = new ESPLoader({
             transport,
             baudrate,
             terminal,
-            romBaudrate: initbaud === undefined ? baudrate : initbaud
+            romBaudrate: initbaud === undefined ? baudrate : initbaud,
         })
-        this.esploader.ESP_RAM_BLOCK = 0x0800 // we override otherwise flashing on BF will fail
+        this.esploader.ESP_RAM_BLOCK = 0x0800
 
-        let hasError
-        const passthrough = new Passthrough(transport, this.term, this.config.firmware, baudrate)
+        let hasError: MismatchError | undefined
+        const passthrough = new Passthrough(transport, this.term, this.config.firmware ?? '', baudrate)
         try {
             if (this.method === 'uart') {
                 if (this.type === 'RX' && !this.config.platform.startsWith('esp32')) {
                     await transport.connect(baudrate)
-                    const ret = await this.esploader._connectAttempt(mode = 'no_reset', new CustomReset(transport, 'W0'))
-
+                    const ret = await this.esploader._connectAttempt(
+                        (mode = 'no_reset'),
+                        new CustomReset(transport, 'W0')
+                    )
                     if (ret !== 'success') {
                         await transport.disconnect()
                         await transport.connect(420000)
@@ -109,7 +129,7 @@ export class ESPFlasher {
                 await transport.setDTR(false)
                 await transport.sleep(100)
             }
-        } catch(e) {
+        } catch (e) {
             if (!(e instanceof MismatchError)) {
                 throw e
             }
@@ -118,33 +138,46 @@ export class ESPFlasher {
 
         await transport.disconnect()
 
-        const chip = await this.esploader.main(mode)
-        if ((this.esploader.chip.CHIP_NAME === 'ESP8266' && this.config.platform !== 'esp8285') ||
-            (this.esploader.chip.CHIP_NAME === 'ESP32-C3' && this.config.platform !== 'esp32-c3') ||
-            (this.esploader.chip.CHIP_NAME === 'ESP32-S3' && this.config.platform !== 'esp32-s3') ||
-            (this.esploader.chip.CHIP_NAME === 'ESP32' && this.config.platform !== 'esp32')) {
-            throw new WrongMCU(`Wrong target selected, this device uses '${chip}' and the firmware is for '${this.config.platform}'`)
+        const chip = await this.esploader.main(mode as Before)
+        const chipName = this.esploader.chip.CHIP_NAME
+        if (
+            (chipName === 'ESP8266' && this.config.platform !== 'esp8285') ||
+            (chipName === 'ESP32-C3' && this.config.platform !== 'esp32-c3') ||
+            (chipName === 'ESP32-S3' && this.config.platform !== 'esp32-s3') ||
+            (chipName === 'ESP32' && this.config.platform !== 'esp32')
+        ) {
+            throw new WrongMCU(
+                `Wrong target selected, this device uses '${chip}' and the firmware is for '${this.config.platform}'`
+            )
         }
         console.log(`Settings done for ${chip}`)
 
         if (hasError) {
             throw hasError
         }
-        return this.esploader.chip.CHIP_NAME
+        return chipName
     }
 
-    flash = async (files, erase, progress) => {
+    flash = async (
+        files: FirmwareChunk[],
+        erase: boolean,
+        progress: (fileNumber: number, percent: number, total: number) => void
+    ): Promise<void> => {
         const loader = this.esploader
+        let fileList = files
         if (this.method === 'etx' || this.method === 'betaflight') {
             loader.FLASH_WRITE_SIZE = 0x0800
             if (this.config.platform.startsWith('esp32') && this.method === 'betaflight') {
-                files = files.slice(-1)
+                fileList = files.slice(-1)
             }
         }
 
-        const fileArray = files.map(v => ({data: loader.ui8ToBstr(v.data), address: v.address}))
+        const fileArray = fileList.map((v) => ({
+            data: (loader.transport as TransportEx).ui8ToBstr(v.data),
+            address: v.address,
+        }))
         loader.IS_STUB = true
-        return loader.writeFlash({
+        await loader.writeFlash({
             fileArray,
             flashSize: 'keep',
             flashMode: 'keep',
@@ -152,21 +185,18 @@ export class ESPFlasher {
             eraseAll: erase,
             compress: true,
             reportProgress: progress,
-            calculateMD5Hash: (image) => CryptoJS.MD5(CryptoJS.enc.Latin1.parse(image))
+            calculateMD5Hash: (image: string) =>
+                CryptoJS.MD5(CryptoJS.enc.Latin1.parse(image)) as unknown as string,
         })
-            .then(_ => {
-                progress(fileArray.length - 1, 100, 100)
-                if (this.config.platform.startsWith('esp32')) {
-                    return loader.after('hard_reset').catch(() => {
-                    })
-                } else {
-                    return loader.after('soft_reset').catch(() => {
-                    })
-                }
-            })
+        progress(fileArray.length - 1, 100, 100)
+        if (this.config.platform.startsWith('esp32')) {
+            await loader.after('hard_reset' as After).catch(() => {})
+        } else {
+            await loader.after('soft_reset' as After).catch(() => {})
+        }
     }
 
-    close = async () => {
+    close = async (): Promise<void> => {
         await this.esploader.transport.disconnect()
     }
 }

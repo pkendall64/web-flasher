@@ -14,45 +14,49 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see https://www.gnu.org/licenses/.
 -->
-<script setup>
-import {ref, watch, watchEffect, watchPostEffect} from 'vue';
-import {store} from '../js/state';
-import {compareSemanticVersions} from 'elrs-firmware-config';
+<script setup lang="ts">
+import { ref, watch, watchEffect, watchPostEffect } from 'vue';
+import { store } from '../js/state';
+import { compareSemanticVersions } from 'elrs-firmware-config';
+import type { FirmwareIndex, HardwareVendor, HardwareTargetConfig } from '../js/hardware-types';
 
-defineProps(['vendorLabel'])
+defineProps<{ vendorLabel?: string }>()
 
-let firmware = ref(null);
+let firmware = ref<FirmwareIndex | null>(null);
 let flashBranch = ref(false);
-let hardware = ref(null);
-let versions = ref([]);
-let vendors = ref([]);
-let targets = ref([]);
+let hardware = ref<Record<string, HardwareVendor> | null>(null);
+let versions = ref<{ title: string; value: string }[]>([]);
+let vendors = ref<{ title: string; value: string }[]>([]);
+let targets = ref<{ title: string; value: { vendor: string; target: string; config: HardwareTargetConfig } }[]>([]);
 
 watchPostEffect(() => {
-  fetch(`./assets/${store.firmware}/index.json`).then(r => r.json()).then(r => {
+  fetch(`./assets/${store.firmware}/index.json`).then(r => r.json()).then((r: FirmwareIndex) => {
     firmware.value = r
   })
 })
 
 function updateVersions() {
-  if (firmware.value) {
+  const fw = firmware.value
+  if (fw) {
     hardware.value = null
     store.version = null
     versions.value = []
+    const branches = fw.branches ?? {}
+    const tags = fw.tags ?? {}
     if (flashBranch.value) {
-      Object.entries(firmware.value.branches).forEach(([key, value]) => {
-        versions.value.push({title: key, value: value})
+      Object.entries(branches).forEach(([key, value]) => {
+        versions.value.push({ title: key, value })
         if (!store.version) store.version = value
       })
-      Object.entries(firmware.value.tags).forEach(([key, value]) => {
-        if (key.indexOf('-') !== -1) versions.value.push({title: key, value: value})
+      Object.entries(tags).forEach(([key, value]) => {
+        if (key.indexOf('-') !== -1) versions.value.push({ title: key, value })
       })
       versions.value = versions.value.sort((a, b) => a.title.localeCompare(b.title))
     } else {
-      Object.keys(firmware.value.tags).sort(compareSemanticVersions).reverse().forEach((key) => {
+      Object.keys(tags).sort(compareSemanticVersions).reverse().forEach((key) => {
         if (key.indexOf('-') === -1 || flashBranch.value) {
-          versions.value.push({title: key, value: firmware.value.tags[key]})
-          if (!store.version) store.version = firmware.value.tags[key]
+          versions.value.push({ title: key, value: tags[key] })
+          if (!store.version) store.version = tags[key]
         }
       })
     }
@@ -70,28 +74,36 @@ watch([() => store.version, versions], () => {
 watchPostEffect(() => {
   if (store.version) {
     store.folder = `./assets/${store.firmware}/${store.version}`
-    fetch(`./assets/${store.firmware}/hardware/targets.json`).then(r => r.json()).then(r => {
+    fetch(`./assets/${store.firmware}/hardware/targets.json`).then(r => r.json()).then((r: Record<string, HardwareVendor>) => {
       hardware.value = r
       store.vendor = null
       vendors.value = []
-      for (const [k, v] of Object.entries(hardware.value)) {
-        let hasTargets = v.hasOwnProperty(store.targetType);
-        if (hasTargets && v.name) vendors.value.push({title: v.name, value: k})
+      const hw = hardware.value
+      if (hw) {
+        const targetType = store.targetType ?? ''
+        for (const [k, v] of Object.entries(hw)) {
+          const hasTargets = Object.prototype.hasOwnProperty.call(v, targetType)
+          if (hasTargets && v.name) vendors.value.push({ title: v.name, value: k })
+        }
+        vendors.value.sort((a, b) => a.title.localeCompare(b.title))
       }
-      vendors.value.sort((a, b) => a.title.localeCompare(b.title))
-    }).catch((_ignore) => {
-    })
+    }).catch(() => {})
   }
 })
 
 watchEffect(() => {
   targets.value = []
   let keepTarget = false
-  if (store.vendor && hardware.value) {
-    for (const [vk, v] of Object.entries(hardware.value)) {
-      if (v[store.targetType] && (vk === store.vendor || store.vendor === null)) {
-        for (const [ck, c] of Object.entries(v[store.targetType])) {
-          targets.value.push({title: c.product_name, value: {vendor: vk, target: ck, config: c}})
+  const vendor = store.vendor
+  const hw = hardware.value
+  const targetType = store.targetType
+  if (vendor && hw && targetType) {
+    for (const [vk, v] of Object.entries(hw)) {
+      const typeTargets = v[targetType as keyof HardwareVendor]
+      if (typeTargets && typeof typeTargets === 'object' && (vk === vendor)) {
+        for (const [ck, c] of Object.entries(typeTargets as Record<string, HardwareTargetConfig>)) {
+          const cfg = c as HardwareTargetConfig
+          targets.value.push({ title: cfg.product_name ?? '', value: { vendor: vk, target: ck, config: cfg } })
           if (store.target && store.target.vendor === vk && store.target.target === ck) keepTarget = true
         }
       }
@@ -105,10 +117,13 @@ watchEffect(() => {
   if (!keepTarget) store.target = null
 })
 
-watch(() => store.target, (v, _oldValue) => {
-  if (v) {
-    store.vendor = v.vendor
-    store.vendor_name = hardware.value[v.vendor].name
+watch(() => store.target, (v) => {
+  if (v?.vendor && hardware.value) {
+    const hw = hardware.value[v.vendor]
+    if (hw) {
+      store.vendor = v.vendor
+      store.vendor_name = (hw as HardwareVendor).name ?? ''
+    }
   }
 })
 
