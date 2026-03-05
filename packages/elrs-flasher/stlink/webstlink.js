@@ -1,3 +1,10 @@
+/*
+ * Modified from https://github.com/devanlai/webstlink (MIT).
+ * Changes: fix_cpu_type uses character position 9 (upstream used 10);
+ * filter_detected_cpu uses expected_cpu.startsWith(detected_cpu.type) and
+ * cpus.push (upstream had reversed logic and Python-style .append);
+ * detect_cpu uses expected_cpus.length (upstream used .count).
+ */
 /* webstlink.js
  * STM32 / ST-Link debugger front-end
  *

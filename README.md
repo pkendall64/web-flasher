@@ -1,5 +1,8 @@
 # ExpressLRS Web Flasher
 
+Copyright (C) 2025 ExpressLRS LLC and contributors.  
+Licensed under the [GNU General Public License v3.0](LICENSE).
+
 This is a fully web-based flasher for ExpressLRS 3.x
 Currently supported flashing methods are:
 - UART (Receivers do not need to be in bootloader mode)
