@@ -1,5 +1,4 @@
-import {compareSemanticVersions} from "./version.js";
-import {store} from "./state.js";
+import { compareSemanticVersions } from './version.js'
 
 export class Configure {
     static #MAGIC = new Uint8Array([0xBE, 0xEF, 0xBA, 0xBE, 0xCA, 0xFE, 0xF0, 0x0D])
@@ -43,9 +42,9 @@ export class Configure {
         return pos
     }
 
-    static #patch_tx_params(binary, pos, options, version) {
+    static #patch_tx_params(binary, pos, options, versionStr) {
         pos = this.#write32(binary, pos, options['tlm-report'])
-        if (compareSemanticVersions(store.version, '3.5') < 0) {
+        if (compareSemanticVersions(versionStr, '3.5') < 0) {
             pos = this.#write32(binary, pos, options['fan-runtime'])
         }
         let val = binary[pos]
@@ -80,7 +79,7 @@ export class Configure {
         return pos + 1
     }
 
-    static #configureSTM32(binary, deviceType, radioType, options) {
+    static #configureSTM32(binary, deviceType, radioType, options, versionStr) {
         let pos = this.#find_patch_location(binary)
         if (pos === -1) throw new Error('Configuration magic not found in firmware file. Is this a 3.x firmware?')
 
@@ -108,16 +107,16 @@ export class Configure {
         }
         pos += 7
 
-        if (compareSemanticVersions(store.version, '3.4') >= 0) {
+        if (compareSemanticVersions(versionStr, '3.4') >= 0) {
             pos = this.#write32(binary, pos, options['flash-discriminator'])
         }
 
-        if (compareSemanticVersions(store.version, '3.5') >= 0) {
+        if (compareSemanticVersions(versionStr, '3.5') >= 0) {
             pos = this.#write32(binary, pos, options['fan-runtime'])
         }
 
         if (deviceType === 'TX') { // TX target
-            pos = this.#patch_tx_params(binary, pos, options, version)
+            pos = this.#patch_tx_params(binary, pos, options, versionStr)
             if (options.beeptype) { // Has a Buzzer
                 pos = this.#patch_buzzer(binary, pos, options)
             }
@@ -141,7 +140,7 @@ export class Configure {
         const arrayBuffer = await blob.arrayBuffer()
         const dataArray = new Uint8Array(arrayBuffer)
         const data = transform(dataArray)
-        return {data, address}
+        return { data, address }
     }
 
     static #findFirmwareEnd = (binary, config) => {
@@ -208,7 +207,7 @@ export class Configure {
     static download = async (folder, version, deviceType, rxAsTxType, radioType, config, firmwareUrl, options) => {
         if (rxAsTxType) firmwareUrl = firmwareUrl.replace('_RX', '_TX')
         if (config.platform === 'stm32') {
-            const entry = await this.#fetch_file(firmwareUrl, 0, (bin) => this.#configureSTM32(bin, deviceType, radioType, options))
+            const entry = await this.#fetch_file(firmwareUrl, 0, (bin) => this.#configureSTM32(bin, deviceType, radioType, options, version))
             return [entry]
         } else {
             const list = []
@@ -217,10 +216,6 @@ export class Configure {
             if (config.custom_layout) {
                 hardwareLayoutData = this.#bstrToUi8(JSON.stringify(config.custom_layout))
             } else if (config.layout_file) {
-                // get layout from version specific folder OR fall back to global folder
-                // const hardwareLayoutFile = await this.#fetch_file(`${folder}/${version}/hardware/${deviceType}/${config.layout_file}`, 0)
-                //     .catch(() => this.#fetch_file(`${folder}/hardware/${deviceType}/${config.layout_file}`, 0))
-                // Always use latest hardware files
                 const hardwareLayoutFile = await this.#fetch_file(`${folder}/hardware/${deviceType}/${config.layout_file}`, 0)
                 let layout = JSON.parse(this.#ui8ToBstr(hardwareLayoutFile.data))
                 if (config.overlay) {
@@ -249,9 +244,8 @@ export class Configure {
             }
 
             const files = await Promise.all(list)
-            let logoFile = {data: new Uint8Array(0), address: 0}
+            let logoFile = { data: new Uint8Array(0), address: 0 }
             if (config.logo_file) {
-                // get logo from version specific folder OR fall back to global folder
                 logoFile = await this.#fetch_file(`${folder}/${version}/hardware/logo/${config.logo_file}`, 0)
                     .catch(() => this.#fetch_file(`${folder}/hardware/logo/${config.logo_file}`, 0))
             }
