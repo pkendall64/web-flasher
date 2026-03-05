@@ -1,8 +1,8 @@
 <script setup>
 import {ref, watchPostEffect} from "vue";
-import {resetState, store} from "../js/state.js";
-import {generateFirmware} from "../js/firmware.js";
-import {STLink} from "../js/stlink.js";
+import {contextFromStore, resetState, store} from "../js/state.js";
+import {generateFirmware} from "elrs-firmware-config";
+import {STLink} from "elrs-flasher";
 
 let term = {
   write: (e) => {
@@ -38,7 +38,7 @@ const files = {
 }
 
 async function buildFirmware() {
-  const [binary, {config, firmwareUrl, options, deviceType, radioType, txType}] = await generateFirmware()
+  const [binary, {config, firmwareUrl, options, deviceType, radioType, txType}] = await generateFirmware(contextFromStore())
 
   files.firmwareFiles = binary
   files.firmwareUrl = firmwareUrl

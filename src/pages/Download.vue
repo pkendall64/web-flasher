@@ -3,9 +3,8 @@ import {computed, ref, watchEffect} from "vue";
 import * as zip from "@zip.js/zip.js";
 import FileSaver from "file-saver";
 import pako from 'pako';
-import {store} from "../js/state.js";
-import {generateFirmware} from "../js/firmware.js";
-import {getDownloadFilename} from "../js/downloadFilename.js";
+import {contextFromStore, store} from "../js/state.js";
+import {generateFirmware, getDownloadFilename} from "elrs-firmware-config";
 
 watchEffect(buildFirmware)
 
@@ -13,9 +12,9 @@ let zipped = ref(false)
 
 const downloadFilename = computed(() => {
   if (!store.target?.config) return 'firmware.bin.gz'
-  if (store.target.config.platform === 'esp8285') return getDownloadFilename('.bin.gz')
-  if (zipped.value) return getDownloadFilename('.zip')
-  return getDownloadFilename('.bin')
+  if (store.target.config.platform === 'esp8285') return getDownloadFilename('.bin.gz', contextFromStore())
+  if (zipped.value) return getDownloadFilename('.zip', contextFromStore())
+  return getDownloadFilename('.bin', contextFromStore())
 })
 
 const files = {
@@ -27,7 +26,7 @@ const files = {
 
 async function buildFirmware() {
   if (store.currentStep === 3) {
-    const [binary, {config, firmwareUrl, options}] = await generateFirmware()
+    const [binary, {config, firmwareUrl, options}] = await generateFirmware(contextFromStore())
 
     files.firmwareFiles = binary
     files.firmwareUrl = firmwareUrl
@@ -45,7 +44,7 @@ async function downloadFirmware() {
   if (store.target.config.platform === 'esp8285') {
     const bin = pako.gzip(files.firmwareFiles[files.firmwareFiles.length - 1].data)
     const data = new Blob([bin], {type: 'application/octet-stream'})
-    FileSaver.saveAs(data, getDownloadFilename('.bin.gz'))
+    FileSaver.saveAs(data, getDownloadFilename('.bin.gz', contextFromStore()))
   } else if (zipped.value) {
     // create zip file
     const zipper = new zip.ZipWriter(new zip.BlobWriter("application/zip"), {bufferedWrite: true})
@@ -53,11 +52,11 @@ async function downloadFirmware() {
     await zipper.add('partitions.bin', new Blob([files.firmwareFiles[1].data.buffer], {type: 'application/octet-stream'}).stream())
     await zipper.add('boot_app0.bin', new Blob([files.firmwareFiles[2].data.buffer], {type: 'application/octet-stream'}).stream())
     await zipper.add('firmware.bin', new Blob([files.firmwareFiles[3].data.buffer], {type: 'application/octet-stream'}).stream())
-    FileSaver.saveAs(await zipper.close(), getDownloadFilename('.zip'))
+    FileSaver.saveAs(await zipper.close(), getDownloadFilename('.zip', contextFromStore()))
   } else {
     const bin = files.firmwareFiles[files.firmwareFiles.length - 1].data.buffer
     const data = new Blob([bin], {type: 'application/octet-stream'})
-    FileSaver.saveAs(data, getDownloadFilename('.bin'))
+    FileSaver.saveAs(data, getDownloadFilename('.bin', contextFromStore()))
   }
 }
 </script>

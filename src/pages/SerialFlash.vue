@@ -1,10 +1,8 @@
 <script setup>
 import {ref, watchPostEffect} from "vue";
-import {resetState, store} from "../js/state.js";
-import {generateFirmware} from "../js/firmware.js";
-import {XmodemFlasher} from "../js/xmodem.js";
-import {ESPFlasher} from "../js/espflasher.js";
-import {MismatchError, WrongMCU} from "../js/error.js";
+import {contextFromStore, resetState, store} from "../js/state.js";
+import {generateFirmware} from "elrs-firmware-config";
+import {ESPFlasher, XmodemFlasher, MismatchError, WrongMCU} from "elrs-flasher";
 
 watchPostEffect(async (onCleanup) => {
   onCleanup(closeDevice)
@@ -25,7 +23,7 @@ const files = {
 }
 
 async function buildFirmware() {
-  const [binary, {config, firmwareUrl, options, deviceType, radioType, txType}] = await generateFirmware()
+  const [binary, {config, firmwareUrl, options, deviceType, radioType, txType}] = await generateFirmware(contextFromStore())
 
   files.firmwareFiles = binary
   files.firmwareUrl = firmwareUrl
