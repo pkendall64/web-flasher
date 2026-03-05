@@ -14,13 +14,14 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see https://www.gnu.org/licenses/.
 -->
-<script setup>
+<script setup lang="ts">
 import {computed, ref, watchEffect} from "vue";
 import * as zip from "@zip.js/zip.js";
 import FileSaver from "file-saver";
 import pako from 'pako';
-import {contextFromStore, store} from "../js/state.js";
-import {generateFirmware, getDownloadFilename} from "elrs-firmware-config";
+import { contextFromStore, store } from '../js/state';
+import { generateFirmware, getDownloadFilename } from 'elrs-firmware-config';
+import type { FirmwareFile, TargetConfig } from 'elrs-firmware-config';
 
 watchEffect(buildFirmware)
 
@@ -33,7 +34,12 @@ const downloadFilename = computed(() => {
   return getDownloadFilename('.bin', contextFromStore())
 })
 
-const files = {
+const files: {
+  firmwareFiles: FirmwareFile[]
+  config: TargetConfig | null
+  firmwareUrl: string
+  options: Record<string, unknown>
+} = {
   firmwareFiles: [],
   config: null,
   firmwareUrl: '',
@@ -42,21 +48,23 @@ const files = {
 
 async function buildFirmware() {
   if (store.currentStep === 3) {
-    const [binary, {config, firmwareUrl, options}] = await generateFirmware(contextFromStore())
+    const [binary, { config, firmwareUrl, options }] = await generateFirmware(contextFromStore())
 
     files.firmwareFiles = binary
-    files.firmwareUrl = firmwareUrl
-    files.config = config
-    files.options = options
+    files.firmwareUrl = firmwareUrl ?? ''
+    files.config = config ?? null
+    files.options = options ?? {}
 
-    if (store.target.config.upload_methods.includes('zip') ||
-        (store.targetType === 'vrx' && (store.vendor === 'hdzero-goggle' || store.vendor === 'hdzero-boxpro'))) { // or HDZero Goggles
+    const uploadMethods = store.target?.config?.upload_methods
+    if ((uploadMethods?.includes('zip')) ||
+        (store.targetType === 'vrx' && (store.vendor === 'hdzero-goggle' || store.vendor === 'hdzero-boxpro'))) {
       zipped.value = true
     }
   }
 }
 
 async function downloadFirmware() {
+  if (!store.target?.config) return
   if (store.target.config.platform === 'esp8285') {
     const bin = pako.gzip(files.firmwareFiles[files.firmwareFiles.length - 1].data)
     const data = new Blob([bin], {type: 'application/octet-stream'})
@@ -64,14 +72,15 @@ async function downloadFirmware() {
   } else if (zipped.value) {
     // create zip file
     const zipper = new zip.ZipWriter(new zip.BlobWriter("application/zip"), {bufferedWrite: true})
-    await zipper.add('bootloader.bin', new Blob([files.firmwareFiles[0].data.buffer], {type: 'application/octet-stream'}).stream())
-    await zipper.add('partitions.bin', new Blob([files.firmwareFiles[1].data.buffer], {type: 'application/octet-stream'}).stream())
-    await zipper.add('boot_app0.bin', new Blob([files.firmwareFiles[2].data.buffer], {type: 'application/octet-stream'}).stream())
-    await zipper.add('firmware.bin', new Blob([files.firmwareFiles[3].data.buffer], {type: 'application/octet-stream'}).stream())
+    await zipper.add('bootloader.bin', new Blob([files.firmwareFiles[0].data as BlobPart], { type: 'application/octet-stream' }).stream())
+    await zipper.add('partitions.bin', new Blob([files.firmwareFiles[1].data as BlobPart], { type: 'application/octet-stream' }).stream())
+    await zipper.add('boot_app0.bin', new Blob([files.firmwareFiles[2].data as BlobPart], { type: 'application/octet-stream' }).stream())
+    await zipper.add('firmware.bin', new Blob([files.firmwareFiles[3].data as BlobPart], { type: 'application/octet-stream' }).stream())
     FileSaver.saveAs(await zipper.close(), getDownloadFilename('.zip', contextFromStore()))
   } else {
-    const bin = files.firmwareFiles[files.firmwareFiles.length - 1].data.buffer
-    const data = new Blob([bin], {type: 'application/octet-stream'})
+    const last = files.firmwareFiles[files.firmwareFiles.length - 1]
+    const bin = last ? last.data : new Uint8Array(0)
+    const data = new Blob([bin as BlobPart], { type: 'application/octet-stream' })
     FileSaver.saveAs(data, getDownloadFilename('.bin', contextFromStore()))
   }
 }
@@ -87,7 +96,7 @@ async function downloadFirmware() {
       then upload the <b>{{ downloadFilename }}</b> file on the
       <b>Update</b> tab.
     </VCardText>
-    <VCardText v-if="store.target.config.platform === 'esp8285'">
+    <VCardText v-if="store.target?.config?.platform === 'esp8285'">
       The firmware file <b>{{ downloadFilename }}</b> should be flashed as-is, do NOT decompress or unzip the file or you <i>will</i>
       receive an error.
     </VCardText>

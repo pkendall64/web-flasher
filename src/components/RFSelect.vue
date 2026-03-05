@@ -14,12 +14,12 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see https://www.gnu.org/licenses/.
 -->
-<script setup>
+<script setup lang="ts">
 import {VSelect} from "vuetify/components";
 
 let region = defineModel('region')
 let domain = defineModel('domain')
-const props = defineProps({radio: String})
+const props = defineProps<{ radio?: string | null }>()
 
 const regions = [
   {value: 'FCC', title: 'FCC'},

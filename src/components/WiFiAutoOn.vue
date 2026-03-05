@@ -14,10 +14,10 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see https://www.gnu.org/licenses/.
 -->
-<script setup>
-import {store} from "../js/state.js";
+<script setup lang="ts">
+import { store } from '../js/state';
 
-let model = defineModel()
+let model = defineModel<number>()
 </script>
 
 <template>

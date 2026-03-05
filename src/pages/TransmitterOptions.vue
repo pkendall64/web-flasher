@@ -14,10 +14,10 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see https://www.gnu.org/licenses/.
 -->
-<script setup>
+<script setup lang="ts">
 import {onMounted, watch, ref} from 'vue';
-import {store} from "../js/state.js";
-import {getSettings, saveSettings, clearSettings as clearStoredSettings} from "../js/storage.js";
+import { store } from '../js/state';
+import { getSettings, saveSettings, clearSettings as clearStoredSettings } from '../js/storage';
 import BindPhraseInput from "../components/BindPhraseInput.vue";
 import RFSelect from "../components/RFSelect.vue";
 import WiFiSettingsInput from "../components/WiFiSettingsInput.vue";
@@ -25,13 +25,13 @@ import FlashMethodSelect from "../components/FlashMethodSelect.vue";
 import WiFiAutoOn from "../components/WiFiAutoOn.vue";
 import TXOptions from "../components/TXOptions.vue";
 
-const bindPhraseText = ref(null);
+const bindPhraseText = ref<string | null>(null)
 
 onMounted(() => {
     const savedSettings = getSettings();
     if (savedSettings) {
-        if (savedSettings.uid !== undefined) store.options.uid = savedSettings.uid;
-        if (savedSettings.bindPhraseText !== undefined) bindPhraseText.value = savedSettings.bindPhraseText;
+        if (savedSettings.uid !== undefined) store.options.uid = Array.isArray(savedSettings.uid) ? savedSettings.uid : null
+        if (savedSettings.bindPhraseText !== undefined) bindPhraseText.value = typeof savedSettings.bindPhraseText === 'string' ? savedSettings.bindPhraseText : null
         if (savedSettings.region !== undefined) store.options.region = savedSettings.region;
         if (savedSettings.domain !== undefined) store.options.domain = savedSettings.domain;
         if (savedSettings.ssid !== undefined) store.options.ssid = savedSettings.ssid;
@@ -110,11 +110,11 @@ function clearSettings() {
     <br>
     <VForm autocomplete="on" method="POST">
       <BindPhraseInput v-model="store.options.uid" :bind-phrase-text="bindPhraseText" @update:bindPhraseText="bindPhraseText = $event"/>
-      <RFSelect v-model:region="store.options.region" v-model:domain="store.options.domain" :radio="store.radio"/>
+      <RFSelect v-model:region="store.options.region" v-model:domain="store.options.domain" :radio="store.radio ?? undefined"/>
       <WiFiSettingsInput v-model:ssid="store.options.ssid" v-model:password="store.options.password"
                          v-if="store.target?.config?.platform!=='stm32'"/>
 
-      <FlashMethodSelect v-model="store.options.flashMethod" :methods="store.target?.config?.upload_methods"/>
+      <FlashMethodSelect v-model="store.options.flashMethod" :methods="store.target?.config?.upload_methods ?? undefined"/>
 
       <VExpansionPanels variant="popout">
         <VExpansionPanel title="Advanced Settings">

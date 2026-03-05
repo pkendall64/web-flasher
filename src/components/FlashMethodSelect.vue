@@ -14,11 +14,11 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see https://www.gnu.org/licenses/.
 -->
-<script setup>
+<script setup lang="ts">
 import {VSelect} from "vuetify/components";
 
-let model = defineModel()
-const props = defineProps({methods: Array})
+let model = defineModel<string | null | undefined>()
+const props = defineProps<{ methods?: string[] }>()
 
 const flashMethods = [
   {value: 'download', title: 'Local Download'},

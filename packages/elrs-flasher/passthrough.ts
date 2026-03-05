@@ -5,34 +5,29 @@
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, version 3 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import {MismatchError, PassthroughError} from './errors.js'
+import { MismatchError, PassthroughError } from './errors.js'
+import type { Terminal } from './types.js'
+import type { TransportEx } from './serialex.js'
+
 
 export class Bootloader {
-    static INIT_SEQ = {
-        CRSF: [0xEC, 0x04, 0x32, this.ord('b'), this.ord('l')],
-        GHST: [0x89, 0x04, 0x32, this.ord('b'), this.ord('l')]
-    }
+    static readonly INIT_SEQ = {
+        CRSF: [0xEC, 0x04, 0x32, 0x62, 0x6c], // 'b', 'l'
+        GHST: [0x89, 0x04, 0x32, 0x62, 0x6c],
+    } as const satisfies Record<string, readonly number[]>
 
-    static BIND_SEQ = {
-        CRSF: [0xEC, 0x04, 0x32, this.ord('b'), this.ord('d')],
-        GHST: [0x89, 0x04, 0x32, this.ord('b'), this.ord('d')]
-    }
+    static readonly BIND_SEQ = {
+        CRSF: [0xEC, 0x04, 0x32, 0x62, 0x64], // 'b', 'd'
+        GHST: [0x89, 0x04, 0x32, 0x62, 0x64],
+    } as const satisfies Record<string, readonly number[]>
 
-    static ord(s) {
+    static ord(s: string): number {
         return s.charCodeAt(0)
     }
 
-    static calc_crc8(payload, poly = 0xD5) {
+    static calc_crc8(payload: Uint8Array, poly: number = 0xD5): number {
         let crc = 0
         for (let pos = 0; pos < payload.byteLength; pos++) {
             crc ^= payload[pos]
@@ -47,7 +42,7 @@ export class Bootloader {
         return crc
     }
 
-    static get_telemetry_seq(seq, key = null) {
+    static get_telemetry_seq(seq: readonly number[], key: string | null = null): Uint8Array {
         const payload = new Uint8Array(seq)
         let u8array = new Uint8Array(0)
         if (key != null) {
@@ -66,17 +61,34 @@ export class Bootloader {
         return tmp
     }
 
-    static get_init_seq(module, key = null) {
+    static get_init_seq(module: 'CRSF' | 'GHST', key: string | null = null): Uint8Array {
         return this.get_telemetry_seq(this.INIT_SEQ[module], key)
     }
 
-    static get_bind_seq(module, key = null) {
+    static get_bind_seq(module: 'CRSF' | 'GHST', key: string | null = null): Uint8Array {
         return this.get_telemetry_seq(this.BIND_SEQ[module], key)
     }
 }
 
+/**
+ * Passthrough helper for Betaflight / EdgeTX serial passthrough and bootloader init.
+ */
 export class Passthrough {
-    constructor(transport, terminal, flashTarget, baudrate, halfDuplex = false, uploadforce = false) {
+    transport: TransportEx
+    terminal: Terminal
+    flash_target: string
+    baudrate: number
+    half_duplex: boolean
+    uploadforce: boolean
+
+    constructor(
+        transport: TransportEx,
+        terminal: Terminal,
+        flashTarget: string,
+        baudrate: number,
+        halfDuplex: boolean = false,
+        uploadforce: boolean = false
+    ) {
         this.transport = transport
         this.terminal = terminal
         this.flash_target = flashTarget
@@ -85,7 +97,7 @@ export class Passthrough {
         this.uploadforce = uploadforce
     }
 
-    _validate_serialrx = async (config, expected) => {
+    _validate_serialrx = async (config: string, expected: string[]): Promise<boolean> => {
         await this.transport.write_string(`get ${config}\r\n`)
         const line = await this.transport.read_line(100)
         console.log(line)
@@ -99,15 +111,15 @@ export class Passthrough {
         return false
     }
 
-    _sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms))
+    _sleep(ms: number): Promise<void> {
+        return new Promise((resolve) => setTimeout(resolve, ms))
     }
 
-    log(str) {
+    log(str: string): void {
         this.terminal.writeln(str)
     }
 
-    sendExpect = async (send, expect, delay) => {
+    sendExpect = async (send: string, expect: string, delay: number): Promise<void> => {
         await this.transport.write_string(send)
         const line = await this.transport.read_line(100)
 
@@ -119,8 +131,7 @@ export class Passthrough {
         await this._sleep(delay)
     }
 
-
-    edgeTXBP = async () => {
+    edgeTXBP = async (): Promise<void> => {
         this.log('Initializing EdgeTX backpack passthrough')
 
         this.transport.set_delimiters(['> '])
@@ -140,7 +151,7 @@ export class Passthrough {
         this.log('Passthrough initialization complete')
     }
 
-    edgeTX = async () => {
+    edgeTX = async (): Promise<void> => {
         this.log('Initializing EdgeTX passthrough')
 
         this.transport.set_delimiters(['> '])
@@ -160,7 +171,7 @@ export class Passthrough {
         this.log('Passthrough initialization complete')
     }
 
-    betaflight = async () => {
+    betaflight = async (): Promise<void> => {
         this.log('Initializing FC passthrough')
 
         await this.transport.write_string('#')
@@ -177,21 +188,16 @@ export class Passthrough {
 
         this.transport.set_delimiters(['# '])
 
-        let waitfor
-        if (this.half_duplex) {
-            waitfor = ['GHST']
-        } else {
-            waitfor = ['CRSF', 'ELRS']
-        }
-        const serialCheck = []
+        const waitfor = this.half_duplex ? ['GHST'] : ['CRSF', 'ELRS']
+        const serialCheck: string[] = []
 
-        if (!await this._validate_serialrx('serialrx_provider', waitfor)) {
+        if (!(await this._validate_serialrx('serialrx_provider', waitfor))) {
             serialCheck.push('Serial Receiver Protocol is not set to CRSF! Hint: set serialrx_provider = CRSF')
         }
-        if (!await this._validate_serialrx('serialrx_inverted', ['OFF'])) {
+        if (!(await this._validate_serialrx('serialrx_inverted', ['OFF']))) {
             serialCheck.push('Serial Receiver UART is inverted! Hint: set serialrx_inverted = OFF')
         }
-        if (!await this._validate_serialrx('serialrx_halfduplex', ['OFF', 'AUTO'])) {
+        if (!(await this._validate_serialrx('serialrx_halfduplex', ['OFF', 'AUTO']))) {
             serialCheck.push('Serial Receiver UART is not in full duplex! Hint: set serialrx_halfduplex = OFF')
         }
         if (serialCheck.length > 0) {
@@ -212,7 +218,7 @@ export class Passthrough {
         await this.transport.write_string('serial\r\n')
 
         this.transport.set_delimiters(['\n'])
-        let index = false
+        let index: string | false = false
         while (true) {
             const line = await this.transport.read_line(200)
             if (line === '') {
@@ -221,7 +227,7 @@ export class Passthrough {
             if (line.startsWith('serial')) {
                 const regexp = /serial (?<port>(UART)?[0-9]+) (?<port_cfg>[0-9]+) /
                 const config = line.match(regexp)
-                if (config && config.groups && config.groups.port && config.groups.port_cfg && (config.groups.port_cfg & 64) === 64) {
+                if (config?.groups?.port && config.groups.port_cfg && (parseInt(config.groups.port_cfg, 10) & 64) === 64) {
                     index = config.groups.port
                     break
                 }
@@ -240,12 +246,13 @@ export class Passthrough {
             for (let i = 0; i < 10; i++) {
                 await this.transport.read_line(200)
             }
-        } catch (e) {
+        } catch {
+            // ignore
         }
         this.log('Passthrough initialization complete')
     }
 
-    reset_to_bootloader = async () => {
+    reset_to_bootloader = async (): Promise<void> => {
         this.log('Reset to bootloader')
 
         if (this.half_duplex) {
@@ -253,7 +260,7 @@ export class Passthrough {
             await this.transport.write_array(Bootloader.get_init_seq('GHST'))
         } else {
             this.log('Using full duplex (CRSF)')
-            while (await this.transport.read_line(100) !== '') {}
+            while ((await this.transport.read_line(100)) !== '') {}
             const train = new Uint8Array(32)
             train.fill(0x55)
             await this.transport.write_array(new Uint8Array([0x07, 0x07, 0x12, 0x20]))

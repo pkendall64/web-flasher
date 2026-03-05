@@ -14,11 +14,12 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see https://www.gnu.org/licenses/.
 -->
-<script setup>
-import {ref, watchPostEffect} from "vue";
-import {contextFromStore, resetState, store} from "../js/state.js";
-import {generateFirmware} from "elrs-firmware-config";
-import {ESPFlasher, XmodemFlasher, MismatchError, WrongMCU} from "elrs-flasher";
+<script setup lang="ts">
+import { ref, watchPostEffect } from 'vue'
+import { contextFromStore, resetState, store } from '../js/state'
+import { generateFirmware } from 'elrs-firmware-config'
+import type { FirmwareFile, TargetConfig } from 'elrs-firmware-config'
+import { ESPFlasher, XmodemFlasher, MismatchError, WrongMCU, type FlasherMethod } from 'elrs-flasher'
 
 watchPostEffect(async (onCleanup) => {
   onCleanup(closeDevice)
@@ -28,28 +29,37 @@ watchPostEffect(async (onCleanup) => {
   }
 })
 
-const files = {
+const files: {
+  firmwareFiles: FirmwareFile[]
+  config: TargetConfig | null
+  firmwareUrl: string
+  options: Record<string, unknown>
+  deviceType: string | null
+  radioType: string | undefined
+  txType: string | undefined
+} = {
   firmwareFiles: [],
   config: null,
   firmwareUrl: '',
   options: {},
   deviceType: null,
   radioType: undefined,
-  txType: undefined
+  txType: undefined,
 }
 
 async function buildFirmware() {
-  const [binary, {config, firmwareUrl, options, deviceType, radioType, txType}] = await generateFirmware(contextFromStore())
+  const [binary, { config, firmwareUrl, options, deviceType, radioType, txType }] = await generateFirmware(contextFromStore())
 
   files.firmwareFiles = binary
-  files.firmwareUrl = firmwareUrl
-  files.config = config
-  files.options = options
-  files.deviceType = deviceType
-  files.radioType = radioType
-  files.txType = txType
+  files.firmwareUrl = firmwareUrl ?? ''
+  files.config = config ?? null
+  files.options = options ?? {}
+  files.deviceType = deviceType ?? null
+  files.radioType = radioType ?? undefined
+  files.txType = txType ?? undefined
   fullErase.value = false
-  allowErase.value = !(store.target.config.platform.startsWith('esp32') && store.options.flashMethod === 'betaflight')
+  const platform = store.target?.config?.platform
+  allowErase.value = !(platform?.startsWith('esp32') && store.options.flashMethod === 'betaflight')
 }
 
 let step = ref(1)
@@ -58,13 +68,13 @@ let allowErase = ref(true)
 let fullErase = ref(false)
 let flashComplete = ref(false)
 let failed = ref(false)
-let log = ref([])
+let log = ref<string[]>([])
 let newline = false
 let selectingSerial = ref(false)
 
 let noDevice = ref(false)
-let flasher;
-let device = null;
+let flasher: ESPFlasher | XmodemFlasher | null = null
+let device: SerialPort | null = null
 
 let progress = ref(0)
 let progressText = ref('')
@@ -72,8 +82,9 @@ let progressText = ref('')
 async function closeDevice() {
   if (flasher) {
     try {
-      await flasher.close()
-    } catch (error) {
+      if ('close' in flasher && typeof flasher.close === 'function') await flasher.close()
+    } catch {
+      // ignore
     }
     flasher = null
     device = null
@@ -97,8 +108,7 @@ async function connect() {
   selectingSerial.value = true
   try {
     device = await navigator.serial.requestPort()
-    device.ondisconnect = async (_p, _e) => {
-      console.log("disconnected")
+    device.ondisconnect = async () => {
       await closeDevice()
     }
   } catch {
@@ -111,8 +121,8 @@ async function connect() {
   if (device) {
     step.value++
     const method = store.options.flashMethod
-    let term = {
-      write: (e) => {
+    const term = {
+      write: (e: string) => {
         if (newline) {
           log.value.push(e)
         } else {
@@ -120,21 +130,24 @@ async function connect() {
         }
         newline = false
       },
-      writeln: (e) => {
+      writeln: (e: string) => {
         log.value.push(e)
         newline = true
-      }
+      },
     }
 
+    if (!store.target?.config) return
+    const config = files.config!
+    const espConfig = { ...config, platform: config.platform ?? '' }
     if (store.target.config.platform === 'stm32') {
-      flasher = new XmodemFlasher(device, files.deviceType, method, files.config, files.options, files.firmwareUrl, term)
+      flasher = new XmodemFlasher(device as unknown as { readable: ReadableStream<Uint8Array>; writable: WritableStream<Uint8Array>; close(): Promise<void> }, files.deviceType ?? '', method ?? 'uart', { firmware: config.firmware ?? '' }, files.options, files.firmwareUrl, term)
     } else {
-      flasher = new ESPFlasher(device, files.deviceType, method, files.config, files.options, files.firmwareUrl, term)
+      flasher = new ESPFlasher(device, files.deviceType ?? '', (method ?? 'uart') as FlasherMethod, espConfig, files.options, files.firmwareUrl, term)
     }
     try {
       await flasher.connect()
       enableFlash.value = true
-    } catch (e) {
+    } catch (e: unknown) {
       if (e instanceof MismatchError) {
         term.writeln('Target mismatch, flashing cancelled')
         failed.value = true
@@ -164,18 +177,20 @@ async function reset() {
 async function flash() {
   failed.value = false
   step.value++
+  const f = flasher
+  if (!f) return
   try {
     progressText.value = ''
-    await flasher.flash(files.firmwareFiles, fullErase.value, (fileIndex, written, total) => {
+    await f.flash(files.firmwareFiles, fullErase.value, (fileIndex: number, written: number, total: number) => {
       progressText.value = (fileIndex + 1) + ' of ' + (files.firmwareFiles.length)
       progress.value = Math.round(written / total * 100)
     })
-    await flasher.close()
+    if ('close' in f && typeof (f as { close?: () => Promise<void> }).close === 'function') await (f as { close: () => Promise<void> }).close()
     flasher = null
     device = null
     flashComplete.value = true
     step.value++
-  } catch (e) {
+  } catch (e: unknown) {
     console.log(e)
     failed.value = true
   }

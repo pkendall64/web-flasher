@@ -14,23 +14,20 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see https://www.gnu.org/licenses/.
 -->
-<script setup>
+<script setup lang="ts">
 import {ref, watch, onMounted} from "vue";
 import {VTextField} from "vuetify/components";
-import {uidBytesFromText} from "../js/phrase.js";
+import { uidBytesFromText } from '../js/phrase';
 
-const props = defineProps({
-  bindPhraseText: {
-    type: String,
-    default: null
-  }
-})
+const props = defineProps<{
+  bindPhraseText?: string | null
+}>()
 
-const emit = defineEmits(['update:bindPhraseText'])
+const emit = defineEmits<{ (e: 'update:bindPhraseText', value: string | null): void }>()
 
-let model = defineModel()
+let model = defineModel<number[] | null>()
 
-let bindPhrase = ref(null)
+let bindPhrase = ref<string | null>(null)
 let uid = ref('Bind Phrase')
 
 function generateUID() {
@@ -39,9 +36,9 @@ function generateUID() {
     model.value = null
     emit('update:bindPhraseText', null)
   } else {
-    let val = Array.from(uidBytesFromText(bindPhrase.value))
+    const val = Array.from(uidBytesFromText(bindPhrase.value))
     model.value = val
-    uid.value = 'UID: ' + val
+    uid.value = 'UID: ' + val.join(',')
     emit('update:bindPhraseText', bindPhrase.value)
   }
 }
@@ -72,7 +69,7 @@ onMounted(() => {
     bindPhrase.value = props.bindPhraseText
     generateUID()
   } else if (model.value && Array.isArray(model.value) && model.value.length > 0) {
-    uid.value = 'UID: ' + model.value
+    uid.value = 'UID: ' + model.value.join(',')
   }
 })
 </script>

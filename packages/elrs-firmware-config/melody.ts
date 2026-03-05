@@ -5,23 +5,20 @@
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, version 3 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 import Rtttl from 'bluejay-rtttl-parse'
 
-export class MelodyParser {
-    static #NOTES = ['A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#']
+/** Melody note: [frequency in Hz, duration in ms]. */
+export type MelodyNote = [number, number]
 
-    static #getFrequency(note, transposeBy = 0, A4 = 440) {
-        // example note: A#5, meaning: 5th octave A sharp
+/**
+ * Parses melody strings (custom format or RTTTL) into arrays of [frequency, duration] for firmware.
+ */
+export class MelodyParser {
+    static readonly #NOTES = ['A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#']
+
+    static #getFrequency(note: string, transposeBy: number = 0, A4: number = 440): number {
         const octave = note.length === 3 ? Number(note[2]) : Number(note[1])
         let keyNumber = this.#NOTES.indexOf(note.slice(0, -1))
         if (keyNumber < 3) {
@@ -33,37 +30,42 @@ export class MelodyParser {
         return Math.floor(A4 * 2 ** ((keyNumber - 49) / 12.0))
     }
 
-    static #getDurationInMs(bpm, duration) {
+    static #getDurationInMs(bpm: number, duration: number): number {
         return Math.floor((1000 * (60 * 4 / bpm)) / duration)
     }
 
-    static #parseMelody(melodyString, bpm = 120, transposeBySemitones = 0) {
-        // parse string to python list
+    static #parseMelody(melodyString: string, bpm: number = 120, transposeBySemitones: number = 0): MelodyNote[] {
         const tokenizedNotes = melodyString.split(' ')
-        const operations = []
+        const operations: MelodyNote[] = []
         for (let i = 0; i < tokenizedNotes.length; i++) {
             const token = tokenizedNotes[i]
             const nextToken = tokenizedNotes[i + 1]
             if (token[0] === 'P') {
-                // Token is a pause operation, use frequency 0
-                operations.push([0, this.#getDurationInMs(bpm, token.substring(1))])
-            } else if ('ABCDEFG'.indexOf(token[0]) !== -1) {
-                // Token is a note; next token will be duration of this note
+                operations.push([0, this.#getDurationInMs(bpm, parseInt(token.substring(1), 10))])
+            } else if ('ABCDEFG'.indexOf(token[0]) !== -1 && nextToken !== undefined) {
                 const frequency = this.#getFrequency(token, transposeBySemitones)
-                const duration = this.#getDurationInMs(bpm, nextToken)
+                const duration = this.#getDurationInMs(bpm, parseInt(nextToken, 10))
                 operations.push([frequency, duration])
             }
         }
         return operations
     }
 
-    static parseToArray(melodyOrRTTTL) {
+    /**
+     * Parse a melody string (custom "A4 20 B4 20|60|0" format or RTTTL) to array of [frequency, duration].
+     *
+     * @param melodyOrRTTTL - Custom format "notes|bpm|transpose" or RTTTL string
+     * @returns Array of [frequency (Hz), duration (ms)], max 32 notes
+     */
+    static parseToArray(melodyOrRTTTL: string): MelodyNote[] {
         if (melodyOrRTTTL.indexOf('|') !== -1) {
             const defineValue = melodyOrRTTTL.split('|')
             const transposeBySemitones = defineValue.length > 2 ? Number(defineValue[2]) : 0
             return this.#parseMelody(defineValue[0].trim(), Number(defineValue[1]), transposeBySemitones)
         } else {
-            const melody = Rtttl.parse(melodyOrRTTTL).melody.map((v) => [Math.floor(v.frequency), Math.floor(v.duration)])
+            const melody = Rtttl.parse(melodyOrRTTTL).melody.map(
+                (v) => [Math.floor(v.frequency), Math.floor(v.duration)] as MelodyNote
+            )
             if (melody.length > 32) melody.length = 32
             return melody
         }

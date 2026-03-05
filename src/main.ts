@@ -15,19 +15,29 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-export class AlertError extends Error {
-    constructor(title = undefined, message = undefined, type = 'error') {
-        super(message)
-        this.title = title
-        this.type = type
-    }
-}
+import '@mdi/font/css/materialdesignicons.css'
+import 'vuetify/styles'
 
-export class MismatchError extends Error {
-}
+import { createApp } from 'vue'
+import { createVuetify } from 'vuetify'
+import * as vertical from 'vuetify/labs/VStepperVertical'
 
-export class PassthroughError extends Error {
-}
+import './main.css'
+import App from './App.vue'
 
-export class WrongMCU extends Error {
-}
+const vuetify = createVuetify({
+  components: { ...vertical },
+  theme: {
+    defaultTheme: 'light',
+  },
+  defaults: {
+    global: {
+      density: 'compact',
+    },
+    VBtn: {
+      density: 'default',
+    },
+  },
+})
+
+createApp(App).use(vuetify).mount('#app')

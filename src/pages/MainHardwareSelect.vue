@@ -14,19 +14,20 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see https://www.gnu.org/licenses/.
 -->
-<script setup>
-import {ref, watch, watchPostEffect} from 'vue';
-import {store} from '../js/state';
-import {compareSemanticVersions} from 'elrs-firmware-config';
+<script setup lang="ts">
+import { ref, computed, watch, watchPostEffect } from 'vue';
+import { store } from '../js/state';
+import { compareSemanticVersions } from 'elrs-firmware-config';
+import type { FirmwareIndex, HardwareVendor, HardwareTargetConfig } from '../js/hardware-types';
 
-let firmware = ref(null);
+let firmware = ref<FirmwareIndex | null>(null);
 let flashBranch = ref(false);
-let hardware = ref(null);
-let versions = ref([]);
-let vendors = ref([]);
-let radios = ref([]);
-let targets = ref([]);
-let luaUrl = ref(null);
+let hardware = ref<Record<string, Record<string, Record<string, HardwareTargetConfig>>> | null>(null);
+let versions = ref<{ title: string; value: string }[]>([]);
+let vendors = ref<{ title: string; value: string }[]>([]);
+let radios = ref<{ title: string; value: string }[]>([]);
+let targets = ref<{ title: string; value: { vendor?: string; radio?: string; target?: string; config: HardwareTargetConfig } }[]>([]);
+let luaUrl = ref<string | null>(null);
 let hasUrlParams = ref(false);
 
 function setTargetFromParams() {
@@ -44,31 +45,34 @@ function setTargetFromParams() {
 }
 
 watchPostEffect(() => {
-  fetch(`./assets/${store.firmware}/index.json`).then(r => r.json()).then(r => {
+  fetch(`./assets/${store.firmware}/index.json`).then(r => r.json()).then((r: FirmwareIndex) => {
     firmware.value = r
   })
 })
 
 function updateVersions() {
-  if (firmware.value) {
+  const fw = firmware.value
+  if (fw) {
     hardware.value = null
     store.version = null
     versions.value = []
+    const branches = fw.branches ?? {}
+    const tags = fw.tags ?? {}
     if (flashBranch.value) {
-      Object.entries(firmware.value.branches).forEach(([key, value]) => {
-        versions.value.push({title: key, value: value})
+      Object.entries(branches).forEach(([key, value]) => {
+        versions.value.push({ title: key, value })
         if (!store.version) store.version = value
       })
-      Object.entries(firmware.value.tags).forEach(([key, value]) => {
-        if (key.indexOf('-') !== -1) versions.value.push({title: key, value: value})
+      Object.entries(tags).forEach(([key, value]) => {
+        if (key.indexOf('-') !== -1) versions.value.push({ title: key, value })
       })
       versions.value = versions.value.sort((a, b) => a.title.localeCompare(b.title))
     } else {
-      let first = true;
-      Object.keys(firmware.value.tags).sort(compareSemanticVersions).reverse().forEach((key) => {
+      let first = true
+      Object.keys(tags).sort(compareSemanticVersions).reverse().forEach((key) => {
         if (key.indexOf('-') === -1 || first) {
-          versions.value.push({title: key, value: firmware.value.tags[key]})
-          if (!store.version && key.indexOf('-') === -1) store.version = firmware.value.tags[key]
+          versions.value.push({ title: key, value: tags[key] })
+          if (!store.version && key.indexOf('-') === -1) store.version = tags[key]
           first = false
         }
       })
@@ -88,36 +92,37 @@ watchPostEffect(() => {
   if (store.version) {
     store.folder = `./assets/${store.firmware}`
 
-    fetch(`./assets/${store.firmware}/hardware/targets.json`).then(r => r.json()).then(r => {
+    fetch(`./assets/${store.firmware}/hardware/targets.json`).then(r => r.json()).then((r: Record<string, Record<string, Record<string, HardwareTargetConfig>>>) => {
       hardware.value = r
       store.vendor = null
       vendors.value = []
-      for (const [k, v] of Object.entries(hardware.value)) {
-        let hasTargets = false;
-        Object.keys(v).forEach(type => hasTargets |= type.startsWith(store.targetType))
-        if (hasTargets && v.name) vendors.value.push({title: v.name, value: k})
+      for (const [k, v] of Object.entries(r)) {
+        let hasTargets = false
+        Object.keys(v).forEach(type => { hasTargets = hasTargets || type.startsWith(store.targetType ?? '') })
+        if (hasTargets && (v as HardwareVendor).name) vendors.value.push({ title: (v as HardwareVendor).name as string, value: k })
       }
       vendors.value.sort((a, b) => a.title.localeCompare(b.title))
-    }).catch((_ignore) => {
-    })
+    }).catch(() => {})
   }
 })
 
-const radioTitles = {
-  'tx_2400': '2.4GHz Transmitter',
-  'tx_900': '900MHz Transmitter',
-  'tx_dual': 'Dual 2.4GHz/900MHz Transmitter',
-  'rx_2400': '2.4GHz Receiver',
-  'rx_900': '900MHz Receiver',
-  'rx_dual': 'Dual 2.4GHz/900MHz Receiver',
+const radioTitles: Record<string, string> = {
+  tx_2400: '2.4GHz Transmitter',
+  tx_900: '900MHz Transmitter',
+  tx_dual: 'Dual 2.4GHz/900MHz Transmitter',
+  rx_2400: '2.4GHz Receiver',
+  rx_900: '900MHz Receiver',
+  rx_dual: 'Dual 2.4GHz/900MHz Receiver',
 }
 
 watchPostEffect(() => {
   radios.value = []
   let keepTarget = false
-  if (store.vendor && hardware.value) {
-    Object.keys(hardware.value[store.vendor]).forEach(k => {
-      if (k.startsWith(store.targetType)) radios.value.push({title: radioTitles[k], value: k})
+  const vendor = store.vendor
+  const hw = hardware.value
+  if (vendor && hw && hw[vendor]) {
+    Object.keys(hw[vendor]).forEach(k => {
+      if (k.startsWith(store.targetType ?? '')) radios.value.push({ title: radioTitles[k] ?? k, value: k })
       if (store.target && store.target.vendor === store.vendor && store.target.radio === k) keepTarget = true
     })
     if (radios.value.length === 1) {
@@ -131,18 +136,21 @@ watchPostEffect(() => {
 watchPostEffect(() => {
   targets.value = []
   let keepTarget = false
-  if (store.version && hardware.value) {
+  const hw = hardware.value
+  if (store.version && hw) {
     setTargetFromParams()
-    const version = versions.value.find(x => x.value === store.version).title
-    for (const [vk, v] of Object.entries(hardware.value)) {
+    const versionItem = versions.value.find(x => x.value === store.version)
+    const version = versionItem?.title ?? ''
+    for (const [vk, v] of Object.entries(hw)) {
       if (vk === store.vendor || store.vendor === null) {
         for (const [rk, r] of Object.entries(v)) {
-          if (rk.startsWith(store.targetType) && (rk === store.radio || store.radio === null)) {
+          if (rk.startsWith(store.targetType ?? '') && (rk === store.radio || store.radio === null)) {
             for (const [ck, c] of Object.entries(r)) {
-              if (flashBranch.value || compareSemanticVersions(version, c.min_version) >= 0) {
-                targets.value.push({title: c.product_name, value: {vendor: vk, radio: rk, target: ck, config: c}})
+              const cfg = c as HardwareTargetConfig
+              if (flashBranch.value || compareSemanticVersions(version, cfg.min_version ?? '0') >= 0) {
+                targets.value.push({ title: cfg.product_name ?? '', value: { vendor: vk, radio: rk, target: ck, config: cfg } })
                 if (store.target && store.target.vendor === vk && store.target.radio === rk && store.target.target === ck) {
-                  store.target.config = c
+                  store.target.config = cfg
                   keepTarget = true
                 }
               }
@@ -159,24 +167,28 @@ watchPostEffect(() => {
 watch([() => store.version, () => store.firmware], () => {
   let file = 'elrs.lua'
   versions.value.forEach(item => {
-    console.log(item)
     if (item.value === store.version && item.title < '4.0.0') {
       file = 'elrsV3.lua'
     }
   })
-  luaUrl = store.version ? `./assets/${store.firmware}/${store.version}/lua/${file}` : null
+  luaUrl.value = store.version ? `./assets/${store.firmware}/${store.version}/lua/${file}` : null
 })
 
-watch(() => store.target, (v, _oldValue) => {
+watch(() => store.target, (v) => {
   if (v) {
-    store.vendor = v.vendor
-    store.radio = v.radio
+    store.vendor = v.vendor ?? null
+    store.radio = v.radio ?? null
   }
 })
 
 function flashType() {
   return flashBranch.value ? 'Branches' : 'Releases'
 }
+
+const targetModel = computed({
+  get: () => store.target ?? undefined,
+  set: (v) => { store.target = v ?? null },
+})
 </script>
 
 <template>
@@ -195,9 +207,9 @@ function flashType() {
              :disabled="!store.version || hasUrlParams"/>
     <VSelect :items="radios" v-model="store.radio" density="compact" label="Radio Frequency"
              :disabled="!store.vendor || hasUrlParams"/>
-    <VAutocomplete :items="targets" v-model="store.target" density="compact" label="Hardware Target"
+    <VAutocomplete :items="targets" v-model="targetModel" density="compact" label="Hardware Target"
              :disabled="!store.version || hasUrlParams"/>
-    <a :href="luaUrl" download>
+    <a :href="luaUrl ?? undefined" download>
       <VBtn :disabled="!luaUrl">Download ELRS Lua Script</VBtn>
     </a>
   </VContainer>

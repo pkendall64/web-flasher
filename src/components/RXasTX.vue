@@ -14,9 +14,9 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see https://www.gnu.org/licenses/.
 -->
-<script setup>
+<script setup lang="ts">
 import {ref} from "vue";
-import {store} from "../js/state.js";
+import { store } from '../js/state';
 
 let enabled = defineModel('enabled')
 let type = defineModel('type')
@@ -29,6 +29,6 @@ let items = ref([
 </script>
 
 <template>
-  <VCheckbox v-model="enabled" :label="'Flash RX as TX' + (store.target.config.platform.startsWith('esp32') ? '' : ' (full-duplex internal module only)')"/>
-  <VSelect v-model="type" :items="items" v-if="store.target.config.platform.startsWith('esp32') && enabled"/>
+  <VCheckbox v-model="enabled" :label="'Flash RX as TX' + (store.target?.config?.platform?.startsWith('esp32') ? '' : ' (full-duplex internal module only)')"/>
+  <VSelect v-model="type" :items="items" v-if="store.target?.config?.platform?.startsWith('esp32') && enabled"/>
 </template>
