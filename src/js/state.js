@@ -77,3 +77,20 @@ export function resetState() {
 export function hasFeature(feature) {
     return store.target?.config?.features?.includes(feature)
 }
+
+/**
+ * Build library context from Vue store for elrs-firmware-config.
+ * @returns {object} Context (baseUrl, version, versionLabel, firmwareType, targetType, radio, target, options)
+ */
+export function contextFromStore() {
+    return {
+        baseUrl: './assets',
+        version: store.version,
+        versionLabel: store.versionLabel,
+        firmwareType: store.firmware,
+        targetType: store.targetType,
+        radio: store.radio,
+        target: store.target,
+        options: store.options,
+    }
+}

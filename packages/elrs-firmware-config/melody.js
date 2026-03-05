@@ -27,7 +27,6 @@ export class MelodyParser {
         for (let i = 0; i < tokenizedNotes.length; i++) {
             const token = tokenizedNotes[i]
             const nextToken = tokenizedNotes[i + 1]
-            console.log(token, nextToken)
             if (token[0] === 'P') {
                 // Token is a pause operation, use frequency 0
                 operations.push([0, this.#getDurationInMs(bpm, token.substring(1))])
