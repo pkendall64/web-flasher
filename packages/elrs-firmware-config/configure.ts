@@ -7,6 +7,7 @@
  * the Free Software Foundation, version 3 of the License.
  */
 
+import { ConfigureError, ConfigureErrorCode } from './errors.js'
 import { compareSemanticVersions } from './version.js'
 import type { TargetConfig, ConfigureOptions } from './types.js'
 import type { FirmwareFile } from './types.js'
@@ -101,7 +102,7 @@ export class Configure {
         versionStr: string
     ): Uint8Array {
         let pos = this.#find_patch_location(binary)
-        if (pos === -1) throw new Error('Configuration magic not found in firmware file. Is this a 3.x firmware?')
+        if (pos === -1) throw new ConfigureError('Configuration magic not found in firmware file. Is this a 3.x firmware?', ConfigureErrorCode.MAGIC_NOT_FOUND)
 
         pos += 8
         const version = binary[pos] + (binary[pos + 1] << 8)
@@ -147,7 +148,10 @@ export class Configure {
 
     static #checkStatus(response: Response): Response {
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status} - ${response.statusText}`)
+            throw new ConfigureError(
+                `HTTP ${response.status} - ${response.statusText}`,
+                ConfigureErrorCode.HTTP_ERROR
+            )
         }
         return response
     }
@@ -169,7 +173,7 @@ export class Configure {
         const platform = config.platform ?? ''
         let pos = 0x0
         if (platform === 'esp8285') pos = 0x1000
-        if (binary[pos] !== 0xE9) throw new Error('The file provided does not the right magic for a firmware file!')
+        if (binary[pos] !== 0xE9) throw new ConfigureError('The file provided does not have the right magic for a firmware file!', ConfigureErrorCode.INVALID_FIRMWARE_MAGIC)
         let segments = binary[pos + 1]
         if (platform.startsWith('esp32')) pos = 24
         else pos = 0x1008

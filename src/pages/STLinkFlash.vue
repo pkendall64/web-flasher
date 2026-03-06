@@ -19,7 +19,7 @@ import { ref, watchPostEffect } from 'vue'
 import { contextFromStore, resetState, store } from '../js/state'
 import { generateFirmware } from 'elrs-firmware-config'
 import type { FirmwareFile, TargetConfig } from 'elrs-firmware-config'
-import { STLink } from 'elrs-flasher'
+import { STLink, normalizeError } from 'elrs-flasher'
 import type { STLink as STLinkClass } from 'elrs-flasher'
 import type { STLinkConfig } from 'elrs-flasher'
 
@@ -93,7 +93,8 @@ async function closeDevice() {
   if (device != null) {
     try {
       await device.close()
-    } catch (error) {
+    } catch (_error: unknown) {
+      // ignore on cleanup
     }
   }
   device = null
@@ -119,7 +120,7 @@ async function connect() {
       await closeDevice()
     })
   } catch (e: unknown) {
-    console.log(e)
+    console.error(normalizeError(e))
     term.writeln('Failed to connect to device, restart device and try again')
     failed.value = true
     noDevice.value = true
@@ -148,7 +149,8 @@ async function flash() {
     device = null
     flashComplete.value = true
     step.value++
-  } catch (e) {
+  } catch (e: unknown) {
+    console.error(normalizeError(e))
     failed.value = true
   }
 }

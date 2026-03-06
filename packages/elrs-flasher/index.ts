@@ -12,7 +12,17 @@ export { ESPFlasher } from './espflasher.js'
 export type { FlasherMethod, FlasherDeviceType } from './espflasher.js'
 export { XmodemFlasher } from './xmodem.js'
 export type { XmodemFlasherConfig } from './xmodem.js'
-export { AlertError, MismatchError, PassthroughError, WrongMCU } from './errors.js'
+export {
+    AlertError,
+    MismatchError,
+    PassthroughError,
+    WrongMCU,
+    CancelledError,
+    BootloaderTimeoutError,
+    isFlasherError,
+    normalizeError,
+} from './errors.js'
+export type { FlasherError } from './errors.js'
 export { TransportEx } from './serialex.js'
 export { Bootloader, Passthrough } from './passthrough.js'
 export type { Terminal, ProgressCallback, STLinkConfig, FirmwareChunk, ESPFlasherConfig } from './types.js'
