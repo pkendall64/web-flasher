@@ -25,4 +25,4 @@ export {
 export type { FlasherError } from './errors.js'
 export { TransportEx } from './serialex.js'
 export { Bootloader, Passthrough } from './passthrough.js'
-export type { Terminal, ProgressCallback, STLinkConfig, FirmwareChunk, ESPFlasherConfig } from './types.js'
+export type { Terminal, ProgressCallback, STLinkConfig, FirmwareChunk, ESPFlasherConfig, FlasherOptions } from './types.js'

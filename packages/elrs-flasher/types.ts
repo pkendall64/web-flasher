@@ -22,11 +22,12 @@ export type ProgressCallback = (fileNumber: number, percent: number, total: numb
 
 /**
  * STLink config slice used in connect/flash (stlink.offset, stlink.cpus).
+ * `cpus` is the list of expected CPU type names (e.g. from targets.json) for device detection.
  */
 export interface STLinkConfig {
     stlink: {
         offset: string
-        cpus: unknown
+        cpus: string[]
     }
 }
 
@@ -37,6 +38,12 @@ export interface FirmwareChunk {
     data: Uint8Array
     address: number
 }
+
+/**
+ * Options object passed through to flashers (from generateFirmware); structure matches ConfigureOptions.
+ * Typed as record to avoid coupling elrs-flasher to elrs-firmware-config.
+ */
+export type FlasherOptions = Record<string, unknown>
 
 /**
  * Config slice for ESP flasher (platform, firmware, baud).

@@ -12,8 +12,7 @@ import { CustomReset, ESPLoader, type After, type Before } from 'esptool-js'
 import { Passthrough } from './passthrough.js'
 import CryptoJS from 'crypto-js'
 import { MismatchError, WrongMCU } from './errors.js'
-import type { Terminal } from './types.js'
-import type { ESPFlasherConfig } from './types.js'
+import type { Terminal, ESPFlasherConfig, FlasherOptions } from './types.js'
 import type { FirmwareChunk } from './types.js'
 
 export type FlasherMethod = 'uart' | 'betaflight' | 'etx' | 'passthru'
@@ -27,7 +26,7 @@ export class ESPFlasher {
     type: FlasherDeviceType
     method: FlasherMethod
     config: ESPFlasherConfig
-    options: unknown
+    options: FlasherOptions
     firmwareUrl: string
     term: Terminal
     mainFirmware: boolean
@@ -38,7 +37,7 @@ export class ESPFlasher {
         type: FlasherDeviceType,
         method: FlasherMethod,
         config: ESPFlasherConfig,
-        options: unknown,
+        options: FlasherOptions,
         firmwareUrl: string,
         term: Terminal
     ) {

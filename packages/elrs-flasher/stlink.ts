@@ -104,7 +104,7 @@ export class STLink {
                 fields.push(['eeprom_size', 'EEPROM Size', 'KiB'])
             }
             for (const [key, title, suffix] of fields) {
-                const val = (target as Record<string, unknown>)[key]
+                const val = target[key]
                 this.log(title + ': ' + val + suffix)
             }
         }

@@ -10,6 +10,7 @@
 import { TransportEx } from './serialex.js'
 import { Bootloader, Passthrough } from './passthrough.js'
 import { CancelledError, BootloaderTimeoutError, MismatchError, PassthroughError } from './errors.js'
+import type { FlasherOptions } from './types.js'
 import type { Terminal } from './types.js'
 import type { ProgressCallback } from './types.js'
 import type { FirmwareChunk } from './types.js'
@@ -223,7 +224,7 @@ export interface XmodemFlasherConfig {
 export class XmodemFlasher {
     device: XmodemDevice
     config: XmodemFlasherConfig
-    options: unknown
+    options: FlasherOptions
     firmwareUrl: string
     terminal: Terminal
     xmodem: Xmodem
@@ -236,7 +237,7 @@ export class XmodemFlasher {
         _deviceType: string,
         _method: string,
         config: XmodemFlasherConfig,
-        options: unknown,
+        options: FlasherOptions,
         firmwareUrl: string,
         terminal: Terminal
     ) {

@@ -20,6 +20,7 @@ export type {
     FirmwareContext,
     FirmwareTarget,
     TargetConfig,
+    HardwareLayout,
     FirmwareOptions,
     ConfigureOptions,
     GetSettingsResult,

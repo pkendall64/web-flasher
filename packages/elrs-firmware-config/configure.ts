@@ -9,8 +9,7 @@
 
 import { ConfigureError, ConfigureErrorCode } from './errors.js'
 import { compareSemanticVersions } from './version.js'
-import type { TargetConfig, ConfigureOptions } from './types.js'
-import type { FirmwareFile } from './types.js'
+import type { TargetConfig, ConfigureOptions, HardwareLayout, FirmwareFile } from './types.js'
 
 /**
  * Fetches and configures firmware binaries (STM32 or ESP) with options.
@@ -275,11 +274,11 @@ export class Configure {
                 hardwareLayoutData = this.#bstrToUi8(JSON.stringify(config.custom_layout))
             } else if (config.layout_file) {
                 const hardwareLayoutFile = await this.#fetch_file(`${folder}/hardware/${deviceType}/${config.layout_file}`, 0)
-                let layout: Record<string, unknown> = JSON.parse(this.#ui8ToBstr(hardwareLayoutFile.data))
+                let layout: HardwareLayout = JSON.parse(this.#ui8ToBstr(hardwareLayoutFile.data)) as HardwareLayout
                 if (config.overlay) {
                     layout = { ...layout, ...config.overlay }
                 }
-                if (rxAsTxType === 'external') (layout as Record<string, unknown>)['serial_rx'] = (layout as Record<string, unknown>)['serial_tx']
+                if (rxAsTxType === 'external') layout.serial_rx = layout.serial_tx
                 hardwareLayoutData = this.#bstrToUi8(JSON.stringify(layout))
             } else {
                 hardwareLayoutData = new Uint8Array(0)

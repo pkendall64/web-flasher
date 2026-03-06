@@ -8,6 +8,16 @@
  */
 
 /**
+ * Hardware layout JSON (from layout_file); merged with overlay and written into firmware.
+ * May contain serial_tx, serial_rx, and other device-specific keys.
+ */
+export interface HardwareLayout {
+    serial_tx?: unknown
+    serial_rx?: unknown
+    [key: string]: unknown
+}
+
+/**
  * Target device configuration (platform, firmware id, features, layout).
  */
 export interface TargetConfig {
@@ -17,15 +27,15 @@ export interface TargetConfig {
     product_name?: string
     lua_name?: string
     layout_file?: string
-    overlay?: Record<string, unknown>
-    custom_layout?: Record<string, unknown>
+    overlay?: HardwareLayout
+    custom_layout?: HardwareLayout
     logo_file?: string
     /** App-only: upload methods supported by this target (e.g. 'zip'). */
     upload_methods?: string[]
     /** App-only: minimum firmware version. */
     min_version?: string
     /** App-only: STLink target config (offset, cpus). */
-    stlink?: { offset: string; cpus: unknown }
+    stlink?: { offset: string; cpus: string[] }
 }
 
 /**
