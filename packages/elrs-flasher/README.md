@@ -22,3 +22,5 @@ Export classes: `MismatchError`, `WrongMCU`, `PassthroughError`, `AlertError` fo
 ## Environment
 
 Targets browser environments only; requires WebUSB (ST-Link) and/or Web Serial (ESP, Xmodem) support.
+
+Full reference: [API.md](./API.md)

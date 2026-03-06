@@ -51,3 +51,5 @@ All URLs are built from `context.baseUrl`:
 - `Configure.download(folder, version, deviceType, rxAsTxType, radioType, config, firmwareUrl, options)` (low-level)
 - `compareSemanticVersions(a, b)` → `number`
 - `MelodyParser.parseToArray(melodyOrRTTTL)` (for TX buzzer options)
+
+Full reference: [API.md](./API.md)
