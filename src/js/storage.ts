@@ -52,8 +52,8 @@ export function getSettings(): StoredSettings | null {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
     return stored ? (JSON.parse(stored) as StoredSettings) : null
-  } catch (e) {
-    console.error('Error loading settings:', e)
+  } catch (error: unknown) {
+    console.error('Error loading settings:', error)
     return null
   }
 }
@@ -64,8 +64,8 @@ export function getSettings(): StoredSettings | null {
 export function saveSettings(settings: StoredSettings): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
-  } catch (e) {
-    console.error('Error saving settings:', e)
+  } catch (error: unknown) {
+    console.error('Error saving settings:', error)
   }
 }
 
@@ -75,7 +75,7 @@ export function saveSettings(settings: StoredSettings): void {
 export function clearSettings(): void {
   try {
     localStorage.removeItem(STORAGE_KEY)
-  } catch (e) {
-    console.error('Error clearing settings:', e)
+  } catch (error: unknown) {
+    console.error('Error clearing settings:', error)
   }
 }

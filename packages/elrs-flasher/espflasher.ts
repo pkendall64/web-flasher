@@ -129,11 +129,11 @@ export class ESPFlasher {
                 await transport.setDTR(false)
                 await transport.sleep(100)
             }
-        } catch (e) {
-            if (!(e instanceof MismatchError)) {
-                throw e
+        } catch (error: unknown) {
+            if (!(error instanceof MismatchError)) {
+                throw error
             }
-            hasError = e
+            hasError = error
         }
 
         await transport.disconnect()

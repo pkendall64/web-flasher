@@ -7,6 +7,37 @@
  * the Free Software Foundation, version 3 of the License.
  */
 
+/** Union of all flasher-specific errors for type-safe handling. */
+export type FlasherError =
+    | AlertError
+    | MismatchError
+    | PassthroughError
+    | WrongMCU
+    | CancelledError
+    | BootloaderTimeoutError
+
+/** Type guard: true if the value is a known flasher error. */
+export function isFlasherError(error: unknown): error is FlasherError {
+    return (
+        error instanceof AlertError ||
+        error instanceof MismatchError ||
+        error instanceof PassthroughError ||
+        error instanceof WrongMCU ||
+        error instanceof CancelledError ||
+        error instanceof BootloaderTimeoutError
+    )
+}
+
+/**
+ * Normalize unknown (from catch) to an Error for logging or rethrowing.
+ * Preserves Error instances; wraps strings and other values in a new Error.
+ */
+export function normalizeError(error: unknown): Error {
+    if (error instanceof Error) return error
+    if (typeof error === 'string') return new Error(error)
+    return new Error(String(error))
+}
+
 /**
  * User-facing alert error with optional title and type (e.g. 'error' | 'warning').
  */
@@ -43,5 +74,21 @@ export class WrongMCU extends Error {
     constructor(message?: string) {
         super(message)
         this.name = 'WrongMCU'
+    }
+}
+
+/** Thrown when the user or stream cancels an operation (e.g. xmodem flash). */
+export class CancelledError extends Error {
+    constructor(message: string = 'Operation cancelled') {
+        super(message)
+        this.name = 'CancelledError'
+    }
+}
+
+/** Thrown when the device fails to enter bootloader mode within the expected time. */
+export class BootloaderTimeoutError extends Error {
+    constructor(message: string = 'Failed to enter bootloader mode in a reasonable time') {
+        super(message)
+        this.name = 'BootloaderTimeoutError'
     }
 }

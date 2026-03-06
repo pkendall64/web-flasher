@@ -9,7 +9,7 @@
 
 import { TransportEx } from './serialex.js'
 import { Bootloader, Passthrough } from './passthrough.js'
-import { MismatchError, PassthroughError } from './errors.js'
+import { CancelledError, BootloaderTimeoutError, MismatchError, PassthroughError } from './errors.js'
 import type { Terminal } from './types.js'
 import type { ProgressCallback } from './types.js'
 import type { FirmwareChunk } from './types.js'
@@ -172,7 +172,7 @@ class Xmodem {
             const { value, done } = await reader.read()
             if (done) {
                 reader.releaseLock()
-                throw new Error('cancelled')
+                throw new CancelledError()
             }
             reader.releaseLock()
             await sendData(value!)
@@ -287,7 +287,7 @@ export class XmodemFlasher {
                 while (!gotBootloader) {
                     currAttempt++
                     if (currAttempt > 10) {
-                        throw new Error('Failed to enter bootloader mode in a reasonable time')
+                        throw new BootloaderTimeoutError()
                     }
                     this.log(`[${currAttempt}] retry...`)
 

@@ -11,6 +11,7 @@
 import * as libstlink from './stlink/lib/package.js'
 import WebStlink from './stlink/webstlink.js'
 import type { Terminal } from './types.js'
+import { normalizeError } from './errors.js'
 import type { STLinkConfig, ProgressCallback, FirmwareChunk } from './types.js'
 import type { StlinkTarget, StlinkStatus } from './stlink/webstlink.js'
 
@@ -164,8 +165,9 @@ export class STLink {
             await nextStlink.attach(device, this)
             this.stlink = nextStlink
             this.device = device
-        } catch (err) {
-            this.error(String(err))
+        } catch (error: unknown) {
+            const err = normalizeError(error)
+            this.error(err.message)
             throw err
         }
         if (this.stlink !== null) {
@@ -186,8 +188,9 @@ export class STLink {
                 try {
                     await this.stlink.halt()
                     await this.stlink.flash(this.target.flash_start, bootloader)
-                } catch (err) {
-                    this.error(String(err))
+                } catch (error: unknown) {
+                    const err = normalizeError(error)
+                    this.error(err.message)
                     throw err
                 }
                 this.fileNumber++
@@ -198,8 +201,9 @@ export class STLink {
             try {
                 await this.stlink.halt()
                 await this.stlink.flash(this.target.flash_start + addr, binary[0].data)
-            } catch (err) {
-                this.error(String(err))
+            } catch (error: unknown) {
+                const err = normalizeError(error)
+                this.error(err.message)
                 throw err
             }
         }

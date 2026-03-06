@@ -19,7 +19,7 @@ import { ref, watchPostEffect } from 'vue'
 import { contextFromStore, resetState, store } from '../js/state'
 import { generateFirmware } from 'elrs-firmware-config'
 import type { FirmwareFile, TargetConfig } from 'elrs-firmware-config'
-import { ESPFlasher, XmodemFlasher, MismatchError, WrongMCU, type FlasherMethod } from 'elrs-flasher'
+import { ESPFlasher, XmodemFlasher, MismatchError, WrongMCU, normalizeError, type FlasherMethod } from 'elrs-flasher'
 
 watchPostEffect(async (onCleanup) => {
   onCleanup(closeDevice)
@@ -92,7 +92,8 @@ async function closeDevice() {
   if (device != null) {
     try {
       await device.close()
-    } catch (error) {
+    } catch (_error: unknown) {
+      // ignore on cleanup
     }
   }
   device = null
@@ -156,7 +157,8 @@ async function connect() {
         term.writeln(e.message)
         failed.value = true
       } else {
-        console.log(e)
+        const err = normalizeError(e)
+        console.error(err)
         term.writeln('Failed to connect to device, restart device and try again')
         failed.value = true
       }
@@ -191,7 +193,7 @@ async function flash() {
     flashComplete.value = true
     step.value++
   } catch (e: unknown) {
-    console.log(e)
+    console.error(normalizeError(e))
     failed.value = true
   }
 }

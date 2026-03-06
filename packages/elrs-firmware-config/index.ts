@@ -7,6 +7,7 @@
  * the Free Software Foundation, version 3 of the License.
  */
 
+export { ConfigureError, ConfigureErrorCode } from './errors.js'
 export { generateFirmware, getSettings } from './firmware.js'
 export { getDownloadFilename } from './downloadFilename.js'
 export { buildFirmwareUrl } from './urls.js'
