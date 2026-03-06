@@ -15,10 +15,12 @@
   along with this program.  If not, see https://www.gnu.org/licenses/.
 -->
 <script setup lang="ts">
-import { ref, watchPostEffect } from 'vue'
-import { contextFromStore, resetState, store } from '../js/state'
-import { generateFirmware } from 'elrs-firmware-config'
+import { computed, ref, watchPostEffect } from 'vue'
+import { contextFromStorePartial, resetState, store } from '../js/state'
+import { FirmwareConfig } from 'elrs-firmware-config'
 import type { FirmwareFile, TargetConfig } from 'elrs-firmware-config'
+
+const firmwareConfig = computed(() => new FirmwareConfig('./assets', store.firmware ?? 'firmware'))
 import { STLink, normalizeError } from 'elrs-flasher'
 import type { STLink as STLinkClass } from 'elrs-flasher'
 import type { STLinkConfig } from 'elrs-flasher'
@@ -65,7 +67,7 @@ const files: {
 }
 
 async function buildFirmware() {
-  const [binary, { config, firmwareUrl, options, deviceType, radioType, txType }] = await generateFirmware(contextFromStore())
+  const [binary, { config, firmwareUrl, options, deviceType, radioType, txType }] = await firmwareConfig.value.generateFirmware(contextFromStorePartial())
 
   files.firmwareFiles = binary
   files.firmwareUrl = firmwareUrl ?? ''

@@ -53,3 +53,14 @@ export interface ESPFlasherConfig {
     firmware?: string
     baud?: number
 }
+
+/**
+ * Params for SerialFlasher.create(): platform selects ESP vs Xmodem; config supplies platform/firmware/baud.
+ */
+export interface SerialFlasherParams {
+    deviceType: string
+    method: string
+    config: { platform?: string; firmware?: string; baud?: number }
+    options: FlasherOptions
+    firmwareUrl: string
+}

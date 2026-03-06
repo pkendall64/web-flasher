@@ -16,7 +16,7 @@
  */
 
 import { reactive } from 'vue'
-import type { FirmwareContext, FirmwareTarget } from 'elrs-firmware-config'
+import type { FirmwareContext, FirmwareContextPartial, FirmwareTarget } from 'elrs-firmware-config'
 
 export interface StoreOptions {
   uid: number[] | null
@@ -47,7 +47,6 @@ export interface StoreOptions {
 export interface AppStore {
   currentStep: number
   firmware: 'firmware' | 'backpack' | null
-  folder: string
   targetType: string | null
   version: string | null
   versionLabel: string | null
@@ -91,7 +90,6 @@ function getDefaultOptions(): StoreOptions {
 export const store = reactive<AppStore>({
   currentStep: 1,
   firmware: null,
-  folder: '',
   targetType: null,
   version: null,
   versionLabel: null,
@@ -106,7 +104,6 @@ export const store = reactive<AppStore>({
 export function resetState(): void {
   store.currentStep = 1
   store.firmware = null
-  store.folder = ''
   store.targetType = null
   store.version = null
   store.versionLabel = null
@@ -121,7 +118,8 @@ export function hasFeature(feature: string): boolean {
 }
 
 /**
- * Build library context from Vue store for elrs-firmware-config.
+ * Build full context from Vue store (baseUrl and firmwareType included).
+ * Prefer contextFromStorePartial() with FirmwareConfig for new code.
  */
 export function contextFromStore(): FirmwareContext {
   return {
@@ -129,6 +127,21 @@ export function contextFromStore(): FirmwareContext {
     version: store.version ?? '',
     versionLabel: store.versionLabel ?? undefined,
     firmwareType: store.firmware ?? 'firmware',
+    targetType: (store.targetType as 'tx' | 'rx') ?? undefined,
+    radio: store.radio ?? undefined,
+    target: store.target ?? undefined,
+    options: store.options as unknown as FirmwareContext['options'],
+  }
+}
+
+/**
+ * Build partial context from Vue store for FirmwareConfig instance methods.
+ * Omit baseUrl and firmwareType; pass with new FirmwareConfig(baseUrl, firmwareType).
+ */
+export function contextFromStorePartial(): FirmwareContextPartial {
+  return {
+    version: store.version ?? '',
+    versionLabel: store.versionLabel ?? undefined,
     targetType: (store.targetType as 'tx' | 'rx') ?? undefined,
     radio: store.radio ?? undefined,
     target: store.target ?? undefined,

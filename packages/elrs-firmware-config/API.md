@@ -7,8 +7,9 @@ Firmware management and configuration for ExpressLRS: build options from context
 ## Contents
 
 - [Types](#types)
-- [Functions](#functions)
-- [Classes](#classes)
+- [FirmwareConfig class](#firmwareconfig-class)
+- [Other classes](#other-classes)
+- [Standalone functions](#standalone-functions)
 - [Errors](#errors)
 - [Path schema](#path-schema)
 
@@ -18,7 +19,7 @@ Firmware management and configuration for ExpressLRS: build options from context
 
 ### `FirmwareContext`
 
-Context passed to `getSettings`, `generateFirmware`, `buildFirmwareUrl`, and `getDownloadFilename`.
+Full context (includes `baseUrl` and `firmwareType`). Used internally; for public API use `FirmwareContextPartial` with `FirmwareConfig` instance methods.
 
 | Property       | Type                              | Description                                      |
 |----------------|-----------------------------------|--------------------------------------------------|
@@ -30,6 +31,10 @@ Context passed to `getSettings`, `generateFirmware`, `buildFirmwareUrl`, and `ge
 | `radio`        | `string \| undefined`             | Radio identifier (e.g. `tx_2400`, `rx_900`).     |
 | `target`       | `FirmwareTarget \| undefined`     | Selected target (vendor, radio, target, config).|
 | `options`      | `FirmwareOptions \| undefined`    | User options (UID, region, TX/RX settings).     |
+
+### `FirmwareContextPartial`
+
+Context for `FirmwareConfig` instance methods; omits `baseUrl` and `firmwareType` (supplied by the instance). Same shape as `FirmwareContext` without those two properties.
 
 ### `FirmwareTarget`
 
@@ -140,97 +145,121 @@ Return type of `buildFirmwareUrl()`.
 
 `[frequency: number, duration: number]` — frequency in Hz, duration in ms.
 
+### `FirmwareIndex`
+
+Firmware index (index.json): branches and tags for version selection.
+
+| Property   | Type                       | Description        |
+|------------|----------------------------|--------------------|
+| `branches` | `Record<string, string> \| undefined` | Branch name → version id. |
+| `tags`     | `Record<string, string> \| undefined` | Tag name → version id.    |
+
+### `SelectOption<T>`
+
+Option item for dropdowns: `{ title: string; value: T }`. Default `T` is `string`.
+
+### `TargetSelectOption`
+
+Option item for target list: `{ title: string; value: FirmwareTarget }`.
+
+### `GetVersionOptionsParams`
+
+Options for `getVersionOptions()`.
+
+| Property           | Type      | Description                          |
+|--------------------|-----------|--------------------------------------|
+| `includeBranches`   | `boolean \| undefined` | If true, include branches and RC tags. |
+
+### `GetTargetsOptions`
+
+Options for target listing (includes `baseUrl` and `firmwareType`). For `FirmwareConfig#getTargets()` use `GetTargetsOptionsInstance` instead.
+
+| Property                | Type     | Description                                      |
+|-------------------------|----------|--------------------------------------------------|
+| `baseUrl`               | `string` | Base URL for assets (e.g. `./assets`).          |
+| `firmwareType`          | `'firmware' \| 'backpack'` | Firmware or backpack.                    |
+| `targetType`            | `string` | e.g. `tx`, `rx`, `txbp`, `vrx`, `aat`, `timer`. |
+| `vendor`                | `string \| null \| undefined` | Filter by vendor id.                  |
+| `radio`                 | `string \| null \| undefined` | Filter by radio id (firmware only).     |
+| `version`               | `string \| null \| undefined` | Version id (for caching).               |
+| `versionLabel`          | `string \| null \| undefined` | Display version for min_version filter.  |
+| `includeBranchVersions` | `boolean \| undefined` | If true, skip min_version filtering.   |
+
+### `GetTargetsOptionsInstance`
+
+Options for `FirmwareConfig#getTargets()`; omits `baseUrl` and `firmwareType` (supplied by the instance). Same properties as `GetTargetsOptions` without those two.
+
 ---
 
-## Functions
+## FirmwareConfig class
 
-### `getSettings(deviceType, context)`
+The primary API. Encapsulates `baseUrl` and `firmwareType`; use one instance per asset root and firmware type (e.g. `new FirmwareConfig('./assets', 'firmware')`). Index and targets are cached in memory by `(baseUrl, firmwareType)`.
 
-Builds settings and options for the given device type and context (firmware URL, options for `Configure.download`).
+**Asset paths (library-owned):**
 
-- **Parameters**
-  - `deviceType`: `string` — `'TX'`, `'RX'`, or backpack device type.
-  - `context`: `FirmwareContext` — Base URL, version, target, options.
-- **Returns**: `Promise<GetSettingsResult>` — `{ config, firmwareUrl, folder, options }`.
+- Index: `{baseUrl}/{firmwareType}/index.json`
+- Targets: `{baseUrl}/{firmwareType}/hardware/targets.json`
+
+### Constructor
+
+- `new FirmwareConfig(baseUrl: string, firmwareType: 'firmware' | 'backpack')`
+
+### Instance methods — index and targets
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `getFirmwareIndex()` | `Promise<FirmwareIndex>` | Fetches index.json (cached). |
+| `getVersionOptions(params?)` | `Promise<SelectOption[]>` | Version dropdown options; `params.includeBranches` for branches/RC. |
+| `getVendors(targetType)` | `Promise<{ id; name }[]>` | Vendors for the given target type. |
+| `getRadios(vendorId, targetType)` | `Promise<{ id; label }[]>` | Radios for a vendor (firmware only; empty for backpack). |
+| `getTargets(options)` | `Promise<TargetSelectOption[]>` | Targets filtered by vendor, radio, version; `options`: `GetTargetsOptionsInstance`. |
+| `getLuaScriptUrl(version, versionLabel?)` | `string` | URL for Lua script (elrs.lua or elrsV3.lua when &lt; 4.0.0). |
+
+### Instance methods — context-based
+
+These take `FirmwareContextPartial` (version, targetType, radio, target, options); the instance supplies `baseUrl` and `firmwareType`.
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `getSettings(deviceType, context)` | `Promise<GetSettingsResult>` | Config, folder, firmwareUrl, options for `Configure.download`. |
+| `generateFirmware(context)` | `Promise<[FirmwareFile[], GenerateFirmwareMetadata]>` | Fetches and patches firmware; returns files and metadata. |
+| `buildFirmwareUrl(context)` | `BuildFirmwareUrlResult` | `{ folder, firmwareUrl }` from context. |
+| `getDownloadFilename(ext?, context?)` | `string` | Filename for download (e.g. `ELRS-v3.5.3-...-FCC-default.bin.gz`). |
 
 **Example**
 
 ```js
-const { config, firmwareUrl, folder, options } = await getSettings('TX', context)
-const files = await Configure.download(folder, context.version, 'TX', undefined, radioType, config, firmwareUrl, options)
+import { FirmwareConfig } from 'elrs-firmware-config'
+
+const config = new FirmwareConfig('./assets', 'firmware')
+const versions = await config.getVersionOptions({ includeBranches: false })
+const [files, metadata] = await config.generateFirmware({ version: 'abc', targetType: 'tx', target: {...}, options: {...} })
+const filename = config.getDownloadFilename('.bin.gz', contextPartial)
 ```
 
----
+### `RADIO_LABELS`
 
-### `generateFirmware(context)`
-
-Generates firmware files and metadata for the given context. Fetches and patches binaries (STM32 or ESP) according to target and options.
-
-- **Parameters**
-  - `context`: `FirmwareContext` — Version, targetType, radio, target, options, firmwareType.
-- **Returns**: `Promise<[FirmwareFile[], GenerateFirmwareMetadata]>` — Tuple of firmware files and metadata.
-
-**Example**
-
-```js
-const [files, metadata] = await generateFirmware(context)
-const filename = getDownloadFilename('.bin.gz', context)
-```
+Exported constant (not on the class): `Record<string, string>` mapping radio id to label (e.g. `tx_2400` → `"2.4GHz Transmitter"`). Use for firmware radio dropdowns.
 
 ---
 
-### `buildFirmwareUrl(context)`
-
-Builds folder and firmware URL from context.
-
-- **Parameters**
-  - `context`: `FirmwareContext` — baseUrl, version, firmwareType, target.config, options.region.
-- **Returns**: `BuildFirmwareUrlResult` — `{ folder, firmwareUrl }`.
-
-Path rules:
-- **Firmware (TX/RX):** `{baseUrl}/firmware`, binary at `{baseUrl}/firmware/{version}/{region}/{config.firmware}/firmware.bin`
-- **Backpack:** `{baseUrl}/backpack`, binary at `{baseUrl}/backpack/{version}/{config.firmware}/firmware.bin`
-
----
-
-### `getDownloadFilename(ext?, context?)`
-
-Builds a download filename from context (e.g. `ELRS-v3.5.3-vendor.radio.target-FCC-default.bin.gz`).
-
-- **Parameters**
-  - `ext`: `string` (default `'.bin.gz'`) — File extension, with leading dot if desired (e.g. `'.bin.gz'` or `'zip'`).
-  - `context`: `FirmwareContext \| undefined` — versionLabel, target, options, firmwareType.
-- **Returns**: `string` — Filename for the download. If `context` is omitted, returns a generic name.
-
----
+## Standalone functions
 
 ### `compareSemanticVersions(a, b)`
 
-Compares two semantic version strings (e.g. `"3.5.0"`, `"3.5.1-rc1"`).
-
-- **Parameters**
-  - `a`: `string` — First version.
-  - `b`: `string` — Second version.
-- **Returns**: `number` — `1` if a > b, `-1` if a < b, `0` if equal.
-
----
+Compares two semantic version strings (e.g. `"3.5.0"`, `"3.5.1-rc1"`). Returns `1` if a > b, `-1` if a < b, `0` if equal.
 
 ### `compareSemanticVersionsRC(a, b)`
 
-Compares semantic versions, ignoring release-candidate suffix (e.g. `"3.5.0-rc1"` vs `"3.5.0"`).
-
-- **Parameters**
-  - `a`: `string \| undefined` — First version.
-  - `b`: `string \| undefined` — Second version.
-- **Returns**: `number` — `1` if a > b, `-1` if a < b, `0` if equal or either undefined.
+Compares semantic versions, ignoring release-candidate suffix. Returns `1` if a > b, `-1` if a < b, `0` if equal or either undefined.
 
 ---
 
-## Classes
+## Other classes
 
 ### `Configure`
 
-Fetches and configures firmware binaries (STM32 or ESP) with options. Used internally by `generateFirmware`; can be used for low-level flows.
+Fetches and configures firmware binaries (STM32 or ESP) with options. Used internally by `FirmwareConfig#generateFirmware`; can be used for low-level flows.
 
 #### `Configure.download(folder, version, deviceType, rxAsTxType, radioType, config, firmwareUrl, options)`
 
@@ -287,9 +316,10 @@ Constants for configure failure reasons:
 **Usage**
 
 ```js
-import { ConfigureError, ConfigureErrorCode } from 'elrs-firmware-config'
+import { ConfigureError, ConfigureErrorCode, FirmwareConfig } from 'elrs-firmware-config'
+const config = new FirmwareConfig('./assets', 'firmware')
 try {
-  await generateFirmware(context)
+  await config.generateFirmware(contextPartial)
 } catch (e) {
   if (e instanceof ConfigureError && e.code === ConfigureErrorCode.HTTP_ERROR) {
     // handle fetch failure
@@ -301,8 +331,11 @@ try {
 
 ## Path schema
 
-All URLs are built from `context.baseUrl`:
+All URLs are built from `context.baseUrl` (or the `baseUrl` passed to asset APIs):
 
+- **Index and targets (asset APIs):**
+  - Index: `{baseUrl}/{firmwareType}/index.json`
+  - Targets: `{baseUrl}/{firmwareType}/hardware/targets.json`
 - **Firmware (TX/RX):**
   - Folder: `{baseUrl}/firmware`
   - Binary: `{baseUrl}/firmware/{version}/{region}/{config.firmware}/firmware.bin`
@@ -311,3 +344,4 @@ All URLs are built from `context.baseUrl`:
   - Binary: `{baseUrl}/backpack/{version}/{config.firmware}/firmware.bin`
 - **Layout (ESP):** `{folder}/hardware/{deviceType}/{config.layout_file}`
 - **Logo (ESP):** `{folder}/hardware/logo/{config.logo_file}` or `{folder}/{version}/hardware/logo/{config.logo_file}`
+- **Lua script:** `{baseUrl}/{firmwareType}/{version}/lua/elrs.lua` or `elrsV3.lua` (when version &lt; 4.0.0)

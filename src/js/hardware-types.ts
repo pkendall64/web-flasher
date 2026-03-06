@@ -1,18 +1,8 @@
 /**
- * Types for firmware index.json and hardware targets.json (asset shapes).
+ * Re-export firmware index and target types from elrs-firmware-config.
+ * Prefer importing from 'elrs-firmware-config' directly.
  */
-export interface FirmwareIndex {
-  branches?: Record<string, string>
-  tags?: Record<string, string>
-}
+export type { FirmwareIndex, TargetConfig, FirmwareTarget } from 'elrs-firmware-config'
 
-export interface HardwareVendor {
-  name?: string
-  [key: string]: unknown
-}
-
-export interface HardwareTargetConfig {
-  product_name?: string
-  min_version?: string
-  [key: string]: unknown
-}
+/** Alias for TargetConfig (hardware target config from targets.json). */
+export type { TargetConfig as HardwareTargetConfig } from 'elrs-firmware-config'

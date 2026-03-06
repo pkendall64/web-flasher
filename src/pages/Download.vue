@@ -15,13 +15,15 @@
   along with this program.  If not, see https://www.gnu.org/licenses/.
 -->
 <script setup lang="ts">
-import {computed, ref, watchEffect} from "vue";
+import { computed, ref, watchEffect } from 'vue';
 import * as zip from "@zip.js/zip.js";
 import FileSaver from "file-saver";
 import pako from 'pako';
-import { contextFromStore, store } from '../js/state';
-import { generateFirmware, getDownloadFilename } from 'elrs-firmware-config';
+import { contextFromStorePartial, store } from '../js/state';
+import { FirmwareConfig } from 'elrs-firmware-config';
 import type { FirmwareFile, TargetConfig } from 'elrs-firmware-config';
+
+const firmwareConfig = computed(() => new FirmwareConfig('./assets', store.firmware ?? 'firmware'));
 
 watchEffect(buildFirmware)
 
@@ -29,9 +31,10 @@ let zipped = ref(false)
 
 const downloadFilename = computed(() => {
   if (!store.target?.config) return 'firmware.bin.gz'
-  if (store.target.config.platform === 'esp8285') return getDownloadFilename('.bin.gz', contextFromStore())
-  if (zipped.value) return getDownloadFilename('.zip', contextFromStore())
-  return getDownloadFilename('.bin', contextFromStore())
+  const ctx = contextFromStorePartial()
+  if (store.target.config.platform === 'esp8285') return firmwareConfig.value.getDownloadFilename('.bin.gz', ctx)
+  if (zipped.value) return firmwareConfig.value.getDownloadFilename('.zip', ctx)
+  return firmwareConfig.value.getDownloadFilename('.bin', ctx)
 })
 
 const files: {
@@ -48,7 +51,7 @@ const files: {
 
 async function buildFirmware() {
   if (store.currentStep === 3) {
-    const [binary, { config, firmwareUrl, options }] = await generateFirmware(contextFromStore())
+    const [binary, { config, firmwareUrl, options }] = await firmwareConfig.value.generateFirmware(contextFromStorePartial())
 
     files.firmwareFiles = binary
     files.firmwareUrl = firmwareUrl ?? ''
@@ -65,10 +68,11 @@ async function buildFirmware() {
 
 async function downloadFirmware() {
   if (!store.target?.config) return
+  const ctx = contextFromStorePartial()
   if (store.target.config.platform === 'esp8285') {
     const bin = pako.gzip(files.firmwareFiles[files.firmwareFiles.length - 1].data)
     const data = new Blob([bin], {type: 'application/octet-stream'})
-    FileSaver.saveAs(data, getDownloadFilename('.bin.gz', contextFromStore()))
+    FileSaver.saveAs(data, firmwareConfig.value.getDownloadFilename('.bin.gz', ctx))
   } else if (zipped.value) {
     // create zip file
     const zipper = new zip.ZipWriter(new zip.BlobWriter("application/zip"), {bufferedWrite: true})
@@ -76,12 +80,12 @@ async function downloadFirmware() {
     await zipper.add('partitions.bin', new Blob([files.firmwareFiles[1].data as BlobPart], { type: 'application/octet-stream' }).stream())
     await zipper.add('boot_app0.bin', new Blob([files.firmwareFiles[2].data as BlobPart], { type: 'application/octet-stream' }).stream())
     await zipper.add('firmware.bin', new Blob([files.firmwareFiles[3].data as BlobPart], { type: 'application/octet-stream' }).stream())
-    FileSaver.saveAs(await zipper.close(), getDownloadFilename('.zip', contextFromStore()))
+    FileSaver.saveAs(await zipper.close(), firmwareConfig.value.getDownloadFilename('.zip', ctx))
   } else {
     const last = files.firmwareFiles[files.firmwareFiles.length - 1]
     const bin = last ? last.data : new Uint8Array(0)
     const data = new Blob([bin as BlobPart], { type: 'application/octet-stream' })
-    FileSaver.saveAs(data, getDownloadFilename('.bin', contextFromStore()))
+    FileSaver.saveAs(data, firmwareConfig.value.getDownloadFilename('.bin', ctx))
   }
 }
 </script>

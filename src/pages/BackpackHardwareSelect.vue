@@ -15,121 +15,106 @@
   along with this program.  If not, see https://www.gnu.org/licenses/.
 -->
 <script setup lang="ts">
-import { ref, watch, watchEffect, watchPostEffect } from 'vue';
+import { ref, computed, watch, watchPostEffect } from 'vue';
 import { store } from '../js/state';
-import { compareSemanticVersions } from 'elrs-firmware-config';
-import type { FirmwareIndex, HardwareVendor, HardwareTargetConfig } from '../js/hardware-types';
+import { FirmwareConfig } from 'elrs-firmware-config';
+import type { FirmwareTarget } from 'elrs-firmware-config';
 
 defineProps<{ vendorLabel?: string }>()
 
-let firmware = ref<FirmwareIndex | null>(null);
+const baseUrl = './assets';
+const firmwareConfig = computed(() =>
+  store.firmware ? new FirmwareConfig(baseUrl, store.firmware) : null
+);
+
 let flashBranch = ref(false);
-let hardware = ref<Record<string, HardwareVendor> | null>(null);
 let versions = ref<{ title: string; value: string }[]>([]);
-let vendors = ref<{ title: string; value: string }[]>([]);
-let targets = ref<{ title: string; value: { vendor: string; target: string; config: HardwareTargetConfig } }[]>([]);
+let vendors = ref<{ id: string; name: string }[]>([]);
+let targets = ref<{ title: string; value: FirmwareTarget }[]>([]);
 
-watchPostEffect(() => {
-  fetch(`./assets/${store.firmware}/index.json`).then(r => r.json()).then((r: FirmwareIndex) => {
-    firmware.value = r
-  })
-})
-
-function updateVersions() {
-  const fw = firmware.value
-  if (fw) {
-    hardware.value = null
-    store.version = null
-    versions.value = []
-    const branches = fw.branches ?? {}
-    const tags = fw.tags ?? {}
-    if (flashBranch.value) {
-      Object.entries(branches).forEach(([key, value]) => {
-        versions.value.push({ title: key, value })
-        if (!store.version) store.version = value
-      })
-      Object.entries(tags).forEach(([key, value]) => {
-        if (key.indexOf('-') !== -1) versions.value.push({ title: key, value })
-      })
-      versions.value = versions.value.sort((a, b) => a.title.localeCompare(b.title))
-    } else {
-      Object.keys(tags).sort(compareSemanticVersions).reverse().forEach((key) => {
-        if (key.indexOf('-') === -1 || flashBranch.value) {
-          versions.value.push({ title: key, value: tags[key] })
-          if (!store.version) store.version = tags[key]
-        }
-      })
-    }
+watchPostEffect(async () => {
+  const config = firmwareConfig.value;
+  if (!config) return;
+  try {
+    const opts = await config.getVersionOptions({ includeBranches: flashBranch.value });
+    versions.value = opts;
+    if (opts.length && !store.version) store.version = opts[0].value;
+  } catch {
+    versions.value = [];
   }
-}
-
-watch(firmware, updateVersions)
-watch(flashBranch, updateVersions)
+});
 
 watch([() => store.version, versions], () => {
-  const item = versions.value.find(x => x.value === store.version)
-  store.versionLabel = item ? item.title : null
-}, { immediate: true })
+  const item = versions.value.find(x => x.value === store.version);
+  store.versionLabel = item ? item.title : null;
+}, { immediate: true });
 
-watchPostEffect(() => {
-  if (store.version) {
-    store.folder = `./assets/${store.firmware}/${store.version}`
-    fetch(`./assets/${store.firmware}/hardware/targets.json`).then(r => r.json()).then((r: Record<string, HardwareVendor>) => {
-      hardware.value = r
-      store.vendor = null
-      vendors.value = []
-      const hw = hardware.value
-      if (hw) {
-        const targetType = store.targetType ?? ''
-        for (const [k, v] of Object.entries(hw)) {
-          const hasTargets = Object.prototype.hasOwnProperty.call(v, targetType)
-          if (hasTargets && v.name) vendors.value.push({ title: v.name, value: k })
-        }
-        vendors.value.sort((a, b) => a.title.localeCompare(b.title))
-      }
-    }).catch(() => {})
+watchPostEffect(async () => {
+  const config = firmwareConfig.value;
+  if (!config || !store.version || !store.targetType) {
+    vendors.value = [];
+    return;
   }
-})
+  try {
+    const list = await config.getVendors(store.targetType);
+    vendors.value = list;
+    store.vendor = null;
+  } catch {
+    vendors.value = [];
+  }
+});
 
-watchEffect(() => {
-  targets.value = []
-  let keepTarget = false
-  const vendor = store.vendor
-  const hw = hardware.value
-  const targetType = store.targetType
-  if (vendor && hw && targetType) {
-    for (const [vk, v] of Object.entries(hw)) {
-      const typeTargets = v[targetType as keyof HardwareVendor]
-      if (typeTargets && typeof typeTargets === 'object' && (vk === vendor)) {
-        for (const [ck, c] of Object.entries(typeTargets as Record<string, HardwareTargetConfig>)) {
-          const cfg = c as HardwareTargetConfig
-          targets.value.push({ title: cfg.product_name ?? '', value: { vendor: vk, target: ck, config: cfg } })
-          if (store.target && store.target.vendor === vk && store.target.target === ck) keepTarget = true
-        }
+watchPostEffect(async () => {
+  const config = firmwareConfig.value;
+  if (!config || !store.version || !store.targetType) {
+    targets.value = [];
+    return;
+  }
+  const versionItem = versions.value.find(x => x.value === store.version);
+  const versionLabel = versionItem?.title ?? null;
+  try {
+    const list = await config.getTargets({
+      targetType: store.targetType,
+      vendor: store.vendor,
+      version: store.version,
+      versionLabel,
+      includeBranchVersions: flashBranch.value,
+    });
+    targets.value = list;
+    let keepTarget = false;
+    for (const item of list) {
+      if (store.target && store.target.vendor === item.value.vendor && store.target.target === item.value.target) {
+        store.target.config = item.value.config;
+        keepTarget = true;
+        break;
       }
     }
-    targets.value.sort((a, b) => a.title.localeCompare(b.title))
-    if (targets.value.length === 1) {
-      store.target = targets.value[0].value
-      keepTarget = true
+    if (list.length === 1) {
+      store.target = list[0].value;
+      keepTarget = true;
     }
+    if (!keepTarget) store.target = null;
+  } catch {
+    targets.value = [];
+    store.target = null;
   }
-  if (!keepTarget) store.target = null
-})
+});
 
 watch(() => store.target, (v) => {
-  if (v?.vendor && hardware.value) {
-    const hw = hardware.value[v.vendor]
-    if (hw) {
-      store.vendor = v.vendor
-      store.vendor_name = (hw as HardwareVendor).name ?? ''
-    }
+  if (v?.vendor) {
+    store.vendor = v.vendor;
+    const ven = vendors.value.find((x) => x.id === v.vendor);
+    store.vendor_name = ven?.name ?? '';
   }
-})
+});
 
 function flashType() {
   return flashBranch.value ? 'Branches' : 'Releases'
 }
+
+const vendorItems = computed(() =>
+  vendors.value.map((v) => ({ title: v.name, value: v.id }))
+);
 </script>
 
 <template>
@@ -156,7 +141,7 @@ function flashType() {
     </template>
     <br>
     <VSelect :items="versions" v-model="store.version" label="Firmware Version"/>
-    <VSelect :items="vendors" v-model="store.vendor" :label="vendorLabel" :disabled="!store.version"/>
+    <VSelect :items="vendorItems" v-model="store.vendor" :label="vendorLabel" :disabled="!store.version"/>
     <VAutocomplete :items="targets" v-model="store.target" label="Hardware Target" :disabled="!store.vendor"/>
   </VContainer>
 </template>

@@ -8,9 +8,11 @@ Device flashing library for ExpressLRS firmware. Provides ST-Link (WebUSB), ESP 
 - **ESPFlasher** — Flash ESP8266/ESP32 via Web Serial (UART, Betaflight passthrough, EdgeTX passthrough).
 - **XmodemFlasher** — Flash STM32 RX via serial Xmodem (Web Serial, CRSF/GHST passthrough).
 
+**Serial factory:** Use **`createSerialFlasher(device, params, term)`** to get the right serial flasher (ESP or Xmodem) from `params.config.platform` instead of branching in app code.
+
 ## Usage
 
-Consumers pass a **term** (logger) object with `write(data)` and `writeln(data)`, plus **config** from firmware/target configuration. Config shape includes:
+Consumers pass a **term** (logger) object with `write(data)` and `writeln(data)`, plus **config** from firmware/target configuration:
 
 - **ST-Link:** `config.stlink.cpus`, `config.stlink.offset`
 - **ESP/Xmodem:** `config.platform`, `config.baud`, `config.firmware`

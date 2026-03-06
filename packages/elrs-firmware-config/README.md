@@ -11,22 +11,20 @@ npm install elrs-firmware-config
 ## Usage
 
 ```js
-import { generateFirmware, getDownloadFilename, buildFirmwareUrl } from 'elrs-firmware-config'
+import { FirmwareConfig } from 'elrs-firmware-config'
 
-const context = {
-  baseUrl: './assets',           // or CDN base URL
-  version: 'abc123',
-  versionLabel: '3.5.3',
-  firmwareType: 'firmware',      // or 'backpack'
-  targetType: 'tx',              // 'tx' | 'rx' | 'txbp' | 'vrx' | ...
-  radio: 'tx_2400',
-  target: { vendor, radio, target, config },
-  options: { uid, region, tx: {...}, rx: {...}, ... }
-}
+const config = new FirmwareConfig('./assets', 'firmware')  // or 'backpack'
 
-const [firmwareFiles, metadata] = await generateFirmware(context)
-const filename = getDownloadFilename('.bin.gz', context)
-const { folder, firmwareUrl } = buildFirmwareUrl(context)
+// Version and hardware selection
+const versions = await config.getVersionOptions({ includeBranches: false })
+const vendors = await config.getVendors('tx')
+const targets = await config.getTargets({ targetType: 'tx', vendor: '...', version: '...' })
+
+// Generate firmware (context partial: no baseUrl/firmwareType)
+const contextPartial = { version: 'abc123', versionLabel: '3.5.3', targetType: 'tx', radio: 'tx_2400', target: {...}, options: {...} }
+const [firmwareFiles, metadata] = await config.generateFirmware(contextPartial)
+const filename = config.getDownloadFilename('.bin.gz', contextPartial)
+const { folder, firmwareUrl } = config.buildFirmwareUrl(contextPartial)
 ```
 
 ## Path schema
@@ -44,12 +42,8 @@ All URLs are built from `context.baseUrl`:
 
 ## API
 
-- `generateFirmware(context)` → `Promise<[firmwareFiles, metadata]>`
-- `getSettings(deviceType, context)` → `Promise<{ config, firmwareUrl, folder, options }>`
-- `getDownloadFilename(ext, context)` → `string`
-- `buildFirmwareUrl(context)` → `{ folder, firmwareUrl }`
-- `Configure.download(folder, version, deviceType, rxAsTxType, radioType, config, firmwareUrl, options)` (low-level)
-- `compareSemanticVersions(a, b)` → `number`
-- `MelodyParser.parseToArray(melodyOrRTTTL)` (for TX buzzer options)
+- **FirmwareConfig** (primary): `new FirmwareConfig(baseUrl, firmwareType)` — then `getVersionOptions()`, `getVendors()`, `getTargets()`, `getLuaScriptUrl()`, `generateFirmware(contextPartial)`, `getDownloadFilename()`, `buildFirmwareUrl()`, `getSettings()`.
+- `compareSemanticVersions(a, b)`, `compareSemanticVersionsRC(a, b)` — standalone helpers.
+- **Configure**, **MelodyParser** — low-level / melody parsing.
 
 Full reference: [API.md](./API.md)

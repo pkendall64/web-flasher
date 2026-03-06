@@ -71,6 +71,18 @@ Config slice for Xmodem flasher.
 |------------|----------|--------------------|
 | `firmware` | `string` | Firmware name.     |
 
+### `SerialFlasherParams`
+
+Params for `createSerialFlasher()`. Used when platform (ESP vs STM32) is determined at runtime.
+
+| Property       | Type     | Description                                      |
+|----------------|----------|--------------------------------------------------|
+| `deviceType`   | `string` | e.g. `'TX'`, `'RX'`.                             |
+| `method`       | `string` | `'uart'`, `'betaflight'`, `'etx'`, or `'passthru'`. |
+| `config`       | `{ platform?: string; firmware?: string; baud?: number }` | Platform selects ESP vs Xmodem; firmware/baud for flasher config. |
+| `options`      | `FlasherOptions` | From firmware config.                        |
+| `firmwareUrl`  | `string` | Firmware URL (for reference).                    |
+
 ### `FlasherMethod`
 
 `'uart' | 'betaflight' | 'etx' | 'passthru'` — ESP connection method.
@@ -82,6 +94,38 @@ Config slice for Xmodem flasher.
 ---
 
 ## Flashers
+
+### `createSerialFlasher(device, params, term)` (factory)
+
+Creates the appropriate serial flasher (ESPFlasher or XmodemFlasher) based on `params.config.platform`. Use this instead of constructing ESPFlasher or XmodemFlasher directly when the target platform is known only at runtime.
+
+- **Parameters**
+  - `device`: `SerialPort` — Web Serial port (e.g. from `navigator.serial.requestPort()`).
+  - `params`: `SerialFlasherParams` — deviceType, method, config (platform, firmware, baud), options, firmwareUrl.
+  - `term`: `Terminal` — Logger for connect/flash output.
+- **Returns**: `ESPFlasher | XmodemFlasher` — ESP flasher when `config.platform` is not `'stm32'`, Xmodem flasher when `config.platform === 'stm32'`.
+
+Both returned flashers expose `connect()`, `flash(...)`, and (for ESP) `close()`. Use the same error handling (`MismatchError`, `WrongMCU`, `normalizeError`) as when constructing the classes directly.
+
+**Example**
+
+```js
+import { createSerialFlasher, MismatchError, WrongMCU, normalizeError } from 'elrs-flasher'
+
+const device = await navigator.serial.requestPort()
+const flasher = createSerialFlasher(device, {
+  deviceType: 'RX',
+  method: 'uart',
+  config: { platform: 'stm32', firmware: 'GHOST_ATTO_2400_RX_v1' },
+  options: {},
+  firmwareUrl: '...',
+}, term)
+await flasher.connect()
+await flasher.flash(files, false, (f, p, t) => {})
+if ('close' in flasher && typeof flasher.close === 'function') await flasher.close()
+```
+
+---
 
 ### `STLink`
 
