@@ -89,6 +89,11 @@ export interface FirmwareContext {
 }
 
 /**
+ * Context for FirmwareConfig instance methods; baseUrl and firmwareType are supplied by the instance.
+ */
+export type FirmwareContextPartial = Omit<FirmwareContext, 'baseUrl' | 'firmwareType'>
+
+/**
  * Options object written into firmware (patch keys like flash-discriminator, melody, etc.).
  */
 export interface ConfigureOptions {
@@ -130,6 +135,56 @@ export interface FirmwareFile {
     data: Uint8Array
     address: number
 }
+
+/**
+ * Firmware index (index.json): branches and tags for version selection.
+ */
+export interface FirmwareIndex {
+    branches?: Record<string, string>
+    tags?: Record<string, string>
+}
+
+/**
+ * Option item for version/vendor/radio dropdowns (title + value).
+ */
+export interface SelectOption<T = string> {
+    title: string
+    value: T
+}
+
+/**
+ * Option item for target list; value is full FirmwareTarget.
+ */
+export interface TargetSelectOption {
+    title: string
+    value: FirmwareTarget
+}
+
+/**
+ * Options for getVersionOptions().
+ */
+export interface GetVersionOptionsParams {
+    includeBranches?: boolean
+}
+
+/**
+ * Options for getTargets().
+ */
+export interface GetTargetsOptions {
+    baseUrl: string
+    firmwareType: 'firmware' | 'backpack'
+    targetType: string
+    vendor?: string | null
+    radio?: string | null
+    version?: string | null
+    versionLabel?: string | null
+    includeBranchVersions?: boolean
+}
+
+/**
+ * Options for FirmwareConfig#getTargets(); baseUrl and firmwareType come from the instance.
+ */
+export type GetTargetsOptionsInstance = Omit<GetTargetsOptions, 'baseUrl' | 'firmwareType'>
 
 /**
  * Metadata returned with generateFirmware().

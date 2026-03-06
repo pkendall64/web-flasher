@@ -15,11 +15,14 @@
   along with this program.  If not, see https://www.gnu.org/licenses/.
 -->
 <script setup lang="ts">
-import { ref, watchPostEffect } from 'vue'
-import { contextFromStore, resetState, store } from '../js/state'
-import { generateFirmware } from 'elrs-firmware-config'
+import { computed, ref, watchPostEffect } from 'vue'
+import { contextFromStorePartial, resetState, store } from '../js/state'
+import { FirmwareConfig } from 'elrs-firmware-config'
 import type { FirmwareFile, TargetConfig } from 'elrs-firmware-config'
-import { ESPFlasher, XmodemFlasher, MismatchError, WrongMCU, normalizeError, type FlasherMethod } from 'elrs-flasher'
+
+const firmwareConfig = computed(() => new FirmwareConfig('./assets', store.firmware ?? 'firmware'))
+import { createSerialFlasher, MismatchError, WrongMCU, normalizeError } from 'elrs-flasher'
+import type { ESPFlasher, XmodemFlasher } from 'elrs-flasher'
 
 watchPostEffect(async (onCleanup) => {
   onCleanup(closeDevice)
@@ -48,7 +51,7 @@ const files: {
 }
 
 async function buildFirmware() {
-  const [binary, { config, firmwareUrl, options, deviceType, radioType, txType }] = await generateFirmware(contextFromStore())
+  const [binary, { config, firmwareUrl, options, deviceType, radioType, txType }] = await firmwareConfig.value.generateFirmware(contextFromStorePartial())
 
   files.firmwareFiles = binary
   files.firmwareUrl = firmwareUrl ?? ''
@@ -137,14 +140,18 @@ async function connect() {
       },
     }
 
-    if (!store.target?.config) return
-    const config = files.config!
-    const espConfig = { ...config, platform: config.platform ?? '' }
-    if (store.target.config.platform === 'stm32') {
-      flasher = new XmodemFlasher(device as unknown as { readable: ReadableStream<Uint8Array>; writable: WritableStream<Uint8Array>; close(): Promise<void> }, files.deviceType ?? '', method ?? 'uart', { firmware: config.firmware ?? '' }, files.options, files.firmwareUrl, term)
-    } else {
-      flasher = new ESPFlasher(device, files.deviceType ?? '', (method ?? 'uart') as FlasherMethod, espConfig, files.options, files.firmwareUrl, term)
-    }
+    if (!store.target?.config || !files.config) return
+    flasher = createSerialFlasher(device, {
+      deviceType: files.deviceType ?? '',
+      method: method ?? 'uart',
+      config: {
+        platform: files.config.platform ?? '',
+        firmware: files.config.firmware,
+        baud: files.config.baud,
+      },
+      options: files.options,
+      firmwareUrl: files.firmwareUrl,
+    }, term)
     try {
       await flasher.connect()
       enableFlash.value = true

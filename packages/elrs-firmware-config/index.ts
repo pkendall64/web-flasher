@@ -8,16 +8,16 @@
  */
 
 export { ConfigureError, ConfigureErrorCode } from './errors.js'
-export { generateFirmware, getSettings } from './firmware.js'
-export { getDownloadFilename } from './downloadFilename.js'
-export { buildFirmwareUrl } from './urls.js'
 export type { BuildFirmwareUrlResult } from './urls.js'
 export { Configure } from './configure.js'
 export { compareSemanticVersions, compareSemanticVersionsRC } from './version.js'
 export { MelodyParser } from './melody.js'
 export type { MelodyNote } from './melody.js'
+export { FirmwareConfig } from './FirmwareConfig.js'
+export { RADIO_LABELS } from './hardwareTargets.js'
 export type {
     FirmwareContext,
+    FirmwareContextPartial,
     FirmwareTarget,
     TargetConfig,
     HardwareLayout,
@@ -26,4 +26,10 @@ export type {
     GetSettingsResult,
     FirmwareFile,
     GenerateFirmwareMetadata,
+    FirmwareIndex,
+    SelectOption,
+    TargetSelectOption,
+    GetVersionOptionsParams,
+    GetTargetsOptions,
+    GetTargetsOptionsInstance,
 } from './types.js'

@@ -12,6 +12,8 @@ export { ESPFlasher } from './espflasher.js'
 export type { FlasherMethod, FlasherDeviceType } from './espflasher.js'
 export { XmodemFlasher } from './xmodem.js'
 export type { XmodemFlasherConfig } from './xmodem.js'
+export { createSerialFlasher } from './SerialFlasher.js'
+export type { SerialFlasherParams } from './SerialFlasher.js'
 export {
     AlertError,
     MismatchError,
