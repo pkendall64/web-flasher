@@ -18,12 +18,10 @@
 import { computed, ref, watchPostEffect } from 'vue'
 import { buildContextFromStore, resetState, store } from '../js/state'
 import { FirmwareConfig, FirmwareFlavor } from 'elrs-firmware-config'
-import type { FirmwareFile, TargetConfig } from 'elrs-firmware-config'
+import type { FirmwareFile, GenerateFirmwareMetadata, TargetConfig } from 'elrs-firmware-config'
+import { flashFirmware, getSTLinkUsbFilters, normalizeError } from 'elrs-flasher'
 
 const firmwareConfig = computed(() => new FirmwareConfig('./assets', store.flavor ?? FirmwareFlavor.Tx))
-import { STLink, normalizeError } from 'elrs-flasher'
-import type { STLink as STLinkClass } from 'elrs-flasher'
-import type { STLinkConfig } from 'elrs-flasher'
 
 const term = {
   write: (e: string) => {
@@ -50,32 +48,19 @@ watchPostEffect(async (onCleanup) => {
 
 const files: {
   firmwareFiles: FirmwareFile[]
+  metadata: GenerateFirmwareMetadata | null
   config: TargetConfig | null
-  firmwareUrl: string
-  options: Record<string, unknown>
-  deviceType: string | null
-  radioType: string | undefined
-  txType: string | undefined
 } = {
   firmwareFiles: [],
+  metadata: null,
   config: null,
-  firmwareUrl: '',
-  options: {},
-  deviceType: null,
-  radioType: undefined,
-  txType: undefined,
 }
 
 async function buildFirmware() {
-  const [binary, { config, firmwareUrl, options, deviceType, radioType, txType }] = await firmwareConfig.value.generateFirmware(buildContextFromStore())
-
+  const [binary, metadata] = await firmwareConfig.value.generateFirmware(buildContextFromStore())
   files.firmwareFiles = binary
-  files.firmwareUrl = firmwareUrl ?? ''
-  files.config = config ?? null
-  files.options = options ?? {}
-  files.deviceType = deviceType ?? null
-  files.radioType = radioType ?? undefined
-  files.txType = txType ?? undefined
+  files.metadata = metadata
+  files.config = metadata.config ?? null
 }
 
 let step = ref(1)
@@ -86,19 +71,12 @@ let log = ref<string[]>([])
 let newline = false
 
 let noDevice = ref(false)
-let device: STLinkClass | null = null
+let device: USBDevice | null = null
 
 let progress = ref(0)
 let progressText = ref('')
 
 async function closeDevice() {
-  if (device != null) {
-    try {
-      await device.close()
-    } catch (_error: unknown) {
-      // ignore on cleanup
-    }
-  }
   device = null
   enableFlash.value = false
   flashComplete.value = false
@@ -117,20 +95,20 @@ async function connect() {
   }
   try {
     if (device) await closeDevice()
-    device = new STLink(term)
-    await device.connect(config as STLinkConfig, async () => {
-      await closeDevice()
-    })
+    const filters = await getSTLinkUsbFilters()
+    const usbDevice = await navigator.usb.requestDevice({ filters })
+    navigator.usb.ondisconnect = (e) => {
+      if (e.device === usbDevice) closeDevice()
+    }
+    device = usbDevice
+    step.value++
+    enableFlash.value = true
   } catch (e: unknown) {
     console.error(normalizeError(e))
     term.writeln('Failed to connect to device, restart device and try again')
     failed.value = true
     noDevice.value = true
-    return
   }
-
-  step.value++
-  enableFlash.value = true
 }
 
 function reset() {
@@ -139,15 +117,21 @@ function reset() {
 }
 
 async function flash() {
+  const usbDevice = device
+  const meta = files.metadata
+  if (!usbDevice || !meta) return
   step.value++
-  const dev = device
-  if (!dev) return
   try {
-    await dev.flash(files.firmwareFiles, undefined, (fileIndex: number, written: number, total: number, msg?: string) => {
-      progressText.value = (fileIndex + 1) + ' of ' + (files.firmwareFiles.length) + (msg ? ' (' + msg + ')' : '')
-      progress.value = Math.round(written / total * 100)
+    await flashFirmware({
+      transport: { type: 'usb', device: usbDevice },
+      firmware: [files.firmwareFiles, meta],
+      method: 'stlink',
+      term,
+      progress: (fileIndex, written, total, msg) => {
+        progressText.value = (fileIndex + 1) + ' of ' + (files.firmwareFiles.length) + (msg ? ' (' + msg + ')' : '')
+        progress.value = Math.round((written / total) * 100)
+      },
     })
-    await dev.close()
     device = null
     flashComplete.value = true
     step.value++
@@ -182,6 +166,10 @@ async function flash() {
       </VStepperVerticalItem>
       <VStepperVerticalItem title="Flashing" value="3" :hide-actions="true" :complete="flashComplete"
                             :color="flashComplete ? 'green' : (failed ? 'red' : 'blue')">
+        <template v-for="line in log">
+          <VLabel>{{ line }}</VLabel>
+          <br/>
+        </template>
         <VRow>
           <VCol class="d-flex align-center flex-column flex-grow-0 flex-shrink-0">
             <VLabel>Flashing file {{ progressText }}</VLabel>

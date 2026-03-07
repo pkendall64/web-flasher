@@ -18,11 +18,11 @@
 import { computed, ref, watchPostEffect } from 'vue'
 import { buildContextFromStore, resetState, store } from '../js/state'
 import { FirmwareConfig, FirmwareFlavor } from 'elrs-firmware-config'
-import type { FirmwareFile, TargetConfig } from 'elrs-firmware-config'
-import { createSerialFlasher, MismatchError, WrongMCU, normalizeError } from 'elrs-flasher'
+import type { FirmwareFile, GenerateFirmwareMetadata, TargetConfig } from 'elrs-firmware-config'
+import { flashFirmware, normalizeError } from 'elrs-flasher'
+import type { FlashMethod } from 'elrs-flasher'
 
 const firmwareConfig = computed(() => new FirmwareConfig('./assets', store.flavor ?? FirmwareFlavor.Tx))
-import type { ESPFlasher, XmodemFlasher } from 'elrs-flasher'
 
 watchPostEffect(async (onCleanup) => {
   onCleanup(closeDevice)
@@ -34,32 +34,19 @@ watchPostEffect(async (onCleanup) => {
 
 const files: {
   firmwareFiles: FirmwareFile[]
+  metadata: GenerateFirmwareMetadata | null
   config: TargetConfig | null
-  firmwareUrl: string
-  options: Record<string, unknown>
-  deviceType: string | null
-  radioType: string | undefined
-  txType: string | undefined
 } = {
   firmwareFiles: [],
+  metadata: null,
   config: null,
-  firmwareUrl: '',
-  options: {},
-  deviceType: null,
-  radioType: undefined,
-  txType: undefined,
 }
 
 async function buildFirmware() {
-  const [binary, { config, firmwareUrl, options, deviceType, radioType, txType }] = await firmwareConfig.value.generateFirmware(buildContextFromStore())
-
+  const [binary, metadata] = await firmwareConfig.value.generateFirmware(buildContextFromStore())
   files.firmwareFiles = binary
-  files.firmwareUrl = firmwareUrl ?? ''
-  files.config = config ?? null
-  files.options = options ?? {}
-  files.deviceType = deviceType ?? null
-  files.radioType = radioType ?? undefined
-  files.txType = txType ?? undefined
+  files.metadata = metadata
+  files.config = metadata.config ?? null
   fullErase.value = false
   const platform = store.target?.config?.platform
   allowErase.value = !(platform?.startsWith('esp32') && store.options.flashMethod === 'betaflight')
@@ -76,22 +63,27 @@ let newline = false
 let selectingSerial = ref(false)
 
 let noDevice = ref(false)
-let flasher: ESPFlasher | XmodemFlasher | null = null
 let device: SerialPort | null = null
 
 let progress = ref(0)
 let progressText = ref('')
 
-async function closeDevice() {
-  if (flasher) {
-    try {
-      if ('close' in flasher && typeof flasher.close === 'function') await flasher.close()
-    } catch {
-      // ignore
+const term = {
+  write: (e: string) => {
+    if (newline) {
+      log.value.push(e)
+    } else {
+      log.value[log.value.length - 1] = log.value[log.value.length - 1] + e
     }
-    flasher = null
-    device = null
-  }
+    newline = false
+  },
+  writeln: (e: string) => {
+    log.value.push(e)
+    newline = true
+  },
+}
+
+async function closeDevice() {
   if (device != null) {
     try {
       await device.close()
@@ -121,55 +113,9 @@ async function connect() {
   } finally {
     selectingSerial.value = false
   }
-
   if (device) {
     step.value++
-    const method = store.options.flashMethod
-    const term = {
-      write: (e: string) => {
-        if (newline) {
-          log.value.push(e)
-        } else {
-          log.value[log.value.length - 1] = log.value[log.value.length - 1] + e
-        }
-        newline = false
-      },
-      writeln: (e: string) => {
-        log.value.push(e)
-        newline = true
-      },
-    }
-
-    if (!store.target?.config || !files.config) return
-    flasher = createSerialFlasher(device, {
-      deviceType: files.deviceType ?? '',
-      method: method ?? 'uart',
-      config: {
-        platform: files.config.platform ?? '',
-        firmware: files.config.firmware,
-        baud: files.config.baud,
-      },
-      options: files.options,
-      firmwareUrl: files.firmwareUrl,
-    }, term)
-    try {
-      await flasher.connect()
-      enableFlash.value = true
-    } catch (e: unknown) {
-      if (e instanceof MismatchError) {
-        term.writeln('Target mismatch, flashing cancelled')
-        failed.value = true
-        enableFlash.value = true
-      } else if (e instanceof WrongMCU) {
-        term.writeln(e.message)
-        failed.value = true
-      } else {
-        const err = normalizeError(e)
-        console.error(err)
-        term.writeln('Failed to connect to device, restart device and try again')
-        failed.value = true
-      }
-    }
+    enableFlash.value = true
   }
 }
 
@@ -184,18 +130,24 @@ async function reset() {
 }
 
 async function flash() {
+  const port = device
+  const meta = files.metadata
+  if (!port || !meta) return
   failed.value = false
   step.value++
-  const f = flasher
-  if (!f) return
   try {
     progressText.value = ''
-    await f.flash(files.firmwareFiles, fullErase.value, (fileIndex: number, written: number, total: number) => {
-      progressText.value = (fileIndex + 1) + ' of ' + (files.firmwareFiles.length)
-      progress.value = Math.round(written / total * 100)
+    await flashFirmware({
+      transport: { type: 'serial', port },
+      firmware: [files.firmwareFiles, meta],
+      method: (store.options.flashMethod ?? 'uart') as FlashMethod,
+      term,
+      progress: (fileIndex, written, total) => {
+        progressText.value = (fileIndex + 1) + ' of ' + (files.firmwareFiles.length)
+        progress.value = Math.round((written / total) * 100)
+      },
+      erase: fullErase.value,
     })
-    if ('close' in f && typeof (f as { close?: () => Promise<void> }).close === 'function') await (f as { close: () => Promise<void> }).close()
-    flasher = null
     device = null
     flashComplete.value = true
     step.value++
@@ -244,6 +196,10 @@ async function flash() {
       </VStepperVerticalItem>
       <VStepperVerticalItem title="Flashing" value="3" :hide-actions="true" :complete="flashComplete"
                             :color="flashComplete ? 'green' : (failed ? 'red' : 'blue')">
+        <template v-for="line in log">
+          <VLabel>{{ line }}</VLabel>
+          <br/>
+        </template>
         <VRow>
           <VCol class="d-flex align-center flex-column flex-grow-0 flex-shrink-0">
             <VLabel v-if="progressText===''">Erasing flash, please wait...</VLabel>
