@@ -94,7 +94,21 @@ export async function getRadios(
 }
 
 /**
- * Get target list filtered by vendor, radio, version. Applies min_version when versionLabel provided and not includeBranchVersions.
+ * Build target key (path in targets.json): "vendor.radio.target" for firmware, "vendor.target" for backpack.
+ */
+function buildTargetKey(
+    firmwareType: 'firmware' | 'backpack',
+    vendor: string,
+    radio: string,
+    target: string
+): string {
+    if (firmwareType === 'backpack') return `${vendor}.${target}`
+    return `${vendor}.${radio}.${target}`
+}
+
+/**
+ * Get target list filtered by vendor, radio, version. Returns key (path) + product name + config for app UI.
+ * App uses value (key) for generateFirmware/buildFirmwareUrl/getDownloadFilename; config for display.
  */
 export async function getTargets(options: GetTargetsOptions): Promise<TargetSelectOption[]> {
     const {
@@ -130,18 +144,50 @@ export async function getTargets(options: GetTargetsOptions): Promise<TargetSele
                 if (typeof cfg !== 'object' || cfg == null) continue
                 const config = cfg as TargetConfig
                 if (!versionOk(config)) continue
+                const key = buildTargetKey(firmwareType, vk, rk, ck)
                 result.push({
                     title: config.product_name ?? '',
-                    value: {
-                        vendor: vk,
-                        radio: firmwareType === 'firmware' ? rk : undefined,
-                        target: ck,
-                        config,
-                    },
+                    value: key,
+                    config,
+                    vendor: vk,
+                    radio: firmwareType === 'firmware' ? rk : undefined,
                 })
             }
         }
     }
     result.sort((a, b) => a.title.localeCompare(b.title))
     return result
+}
+
+/**
+ * Resolve a target key (from getTargets) to the full FirmwareTarget. Used internally when building firmware.
+ */
+export async function getTargetByKey(
+    baseUrl: string,
+    firmwareType: 'firmware' | 'backpack',
+    targetType: string,
+    targetKey: string
+): Promise<FirmwareTarget | null> {
+    const raw = await getTargetsRaw(baseUrl, firmwareType)
+    const parts = targetKey.split('.')
+    if (firmwareType === 'backpack') {
+        if (parts.length < 2) return null
+        const [vendorId, targetId] = parts
+        const vendor = raw[vendorId]
+        if (!vendor) return null
+        const targetsByType = vendor[targetType] as Record<string, TargetConfig> | undefined
+        if (!targetsByType) return null
+        const config = targetsByType[targetId]
+        if (!config || typeof config !== 'object') return null
+        return { vendor: vendorId, target: targetId, config: config as TargetConfig }
+    }
+    if (parts.length < 3) return null
+    const [vendorId, radioId, targetId] = parts
+    const vendor = raw[vendorId]
+    if (!vendor) return null
+    const targets = vendor[radioId] as Record<string, TargetConfig> | undefined
+    if (!targets) return null
+    const config = targets[targetId]
+    if (!config || typeof config !== 'object') return null
+    return { vendor: vendorId, radio: radioId, target: targetId, config: config as TargetConfig }
 }

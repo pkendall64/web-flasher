@@ -16,7 +16,8 @@
  */
 
 import { reactive } from 'vue'
-import type { FirmwareContext, FirmwareContextPartial, FirmwareTarget } from 'elrs-firmware-config'
+import { FirmwareFlavor } from 'elrs-firmware-config'
+import type { BuildContext, TargetSelectOption } from 'elrs-firmware-config'
 
 export interface StoreOptions {
   uid: number[] | null
@@ -46,6 +47,8 @@ export interface StoreOptions {
 
 export interface AppStore {
   currentStep: number
+  /** Source of truth for device type; targetType and firmware are derived from this. */
+  flavor: FirmwareFlavor | null
   firmware: 'firmware' | 'backpack' | null
   targetType: string | null
   version: string | null
@@ -53,7 +56,8 @@ export interface AppStore {
   vendor: string | null
   vendor_name: string
   radio: string | null
-  target: FirmwareTarget | null
+  /** Selected target (key + config + vendor/radio for dropdown sync). */
+  target: TargetSelectOption | null
   name: string
   options: StoreOptions
 }
@@ -89,6 +93,7 @@ function getDefaultOptions(): StoreOptions {
 
 export const store = reactive<AppStore>({
   currentStep: 1,
+  flavor: null,
   firmware: null,
   targetType: null,
   version: null,
@@ -101,8 +106,18 @@ export const store = reactive<AppStore>({
   options: getDefaultOptions(),
 })
 
+/**
+ * Set the current firmware flavor (and derived targetType/firmware). Use this whenever the user picks a device type.
+ */
+export function setFlavor(flavor: FirmwareFlavor | null): void {
+  store.flavor = flavor
+  store.targetType = flavor ?? null
+  store.firmware = flavor ? FirmwareFlavor.firmwareType(flavor) : null
+}
+
 export function resetState(): void {
   store.currentStep = 1
+  store.flavor = null
   store.firmware = null
   store.targetType = null
   store.version = null
@@ -118,33 +133,14 @@ export function hasFeature(feature: string): boolean {
 }
 
 /**
- * Build full context from Vue store (baseUrl and firmwareType included).
- * Prefer contextFromStorePartial() with FirmwareConfig for new code.
+ * Minimal build context for FirmwareConfig (generateFirmware, getDownloadFilename, buildFirmwareUrl).
+ * Only version, versionLabel, target key, and options; library resolves the rest.
  */
-export function contextFromStore(): FirmwareContext {
+export function buildContextFromStore(): BuildContext {
   return {
-    baseUrl: './assets',
-    version: store.version ?? '',
+    version: store.version ?? undefined,
     versionLabel: store.versionLabel ?? undefined,
-    firmwareType: store.firmware ?? 'firmware',
-    targetType: (store.targetType as 'tx' | 'rx') ?? undefined,
-    radio: store.radio ?? undefined,
-    target: store.target ?? undefined,
-    options: store.options as unknown as FirmwareContext['options'],
-  }
-}
-
-/**
- * Build partial context from Vue store for FirmwareConfig instance methods.
- * Omit baseUrl and firmwareType; pass with new FirmwareConfig(baseUrl, firmwareType).
- */
-export function contextFromStorePartial(): FirmwareContextPartial {
-  return {
-    version: store.version ?? '',
-    versionLabel: store.versionLabel ?? undefined,
-    targetType: (store.targetType as 'tx' | 'rx') ?? undefined,
-    radio: store.radio ?? undefined,
-    target: store.target ?? undefined,
-    options: store.options as unknown as FirmwareContext['options'],
+    targetKey: store.target?.value ?? '',
+    options: store.options as unknown as BuildContext['options'],
   }
 }

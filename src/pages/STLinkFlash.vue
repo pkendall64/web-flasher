@@ -16,11 +16,11 @@
 -->
 <script setup lang="ts">
 import { computed, ref, watchPostEffect } from 'vue'
-import { contextFromStorePartial, resetState, store } from '../js/state'
-import { FirmwareConfig } from 'elrs-firmware-config'
+import { buildContextFromStore, resetState, store } from '../js/state'
+import { FirmwareConfig, FirmwareFlavor } from 'elrs-firmware-config'
 import type { FirmwareFile, TargetConfig } from 'elrs-firmware-config'
 
-const firmwareConfig = computed(() => new FirmwareConfig('./assets', store.firmware ?? 'firmware'))
+const firmwareConfig = computed(() => new FirmwareConfig('./assets', store.flavor ?? FirmwareFlavor.Tx))
 import { STLink, normalizeError } from 'elrs-flasher'
 import type { STLink as STLinkClass } from 'elrs-flasher'
 import type { STLinkConfig } from 'elrs-flasher'
@@ -67,7 +67,7 @@ const files: {
 }
 
 async function buildFirmware() {
-  const [binary, { config, firmwareUrl, options, deviceType, radioType, txType }] = await firmwareConfig.value.generateFirmware(contextFromStorePartial())
+  const [binary, { config, firmwareUrl, options, deviceType, radioType, txType }] = await firmwareConfig.value.generateFirmware(buildContextFromStore())
 
   files.firmwareFiles = binary
   files.firmwareUrl = firmwareUrl ?? ''
