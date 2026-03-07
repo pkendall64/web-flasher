@@ -10,21 +10,23 @@ npm install elrs-firmware-config
 
 ## Usage
 
+Construct with **directory** and **flavor** (enum).
+
 ```js
-import { FirmwareConfig } from 'elrs-firmware-config'
+import { FirmwareConfig, FirmwareFlavor } from 'elrs-firmware-config'
 
-const config = new FirmwareConfig('./assets', 'firmware')  // or 'backpack'
+const config = new FirmwareConfig('./assets', FirmwareFlavor.Tx)
 
-// Version and hardware selection
+// Version and hardware selection (targetType comes from flavor)
 const versions = await config.getVersionOptions({ includeBranches: false })
-const vendors = await config.getVendors('tx')
-const targets = await config.getTargets({ targetType: 'tx', vendor: '...', version: '...' })
+const vendors = await config.getVendors()
+const targets = await config.getTargets({ vendor: '...', version: '...' })
 
-// Generate firmware (context partial: no baseUrl/firmwareType)
-const contextPartial = { version: 'abc123', versionLabel: '3.5.3', targetType: 'tx', radio: 'tx_2400', target: {...}, options: {...} }
-const [firmwareFiles, metadata] = await config.generateFirmware(contextPartial)
-const filename = config.getDownloadFilename('.bin.gz', contextPartial)
-const { folder, firmwareUrl } = config.buildFirmwareUrl(contextPartial)
+// Build context: only versionLabel, targetKey (from targets[].value), and options
+const ctx = { version: 'abc123', versionLabel: '3.5.3', targetKey: targets[0].value, options: { region: 'FCC' } }
+const [firmwareFiles, metadata] = await config.generateFirmware(ctx)
+const filename = config.getDownloadFilename('.bin.gz', ctx)
+const { folder, firmwareUrl } = await config.buildFirmwareUrl(ctx)
 ```
 
 ## Path schema
@@ -42,7 +44,8 @@ All URLs are built from `context.baseUrl`:
 
 ## API
 
-- **FirmwareConfig** (primary): `new FirmwareConfig(baseUrl, firmwareType)` — then `getVersionOptions()`, `getVendors()`, `getTargets()`, `getLuaScriptUrl()`, `generateFirmware(contextPartial)`, `getDownloadFilename()`, `buildFirmwareUrl()`, `getSettings()`.
+- **FirmwareFlavor** (enum): `Tx`, `Rx`, `TxBP`, `Vrx`, `Aat`, `Timer` — use with constructor. Store the enum in app state; use `**FirmwareFlavor.fromString(s)`** only at boundaries (e.g. URL param). `**FirmwareFlavor.firmwareType(flavor)**` for asset path type.
+- **FirmwareConfig** (primary): `new FirmwareConfig(baseUrl, flavor)` — then `getVersionOptions()`, `getVendors()`, `getRadios(vendorId)`, `getTargets(options)` (returns `{ title, value: targetKey, config }`), `getLuaScriptUrl()`, `generateFirmware(buildContext)`, `getDownloadFilename()`, `buildFirmwareUrl()` (async), `getSettings()`. Context is **BuildContext**: `version`, `versionLabel`, `targetKey`, `options` only; the library resolves `targetKey` internally.
 - `compareSemanticVersions(a, b)`, `compareSemanticVersionsRC(a, b)` — standalone helpers.
 - **Configure**, **MelodyParser** — low-level / melody parsing.
 

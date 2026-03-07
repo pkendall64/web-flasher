@@ -9,14 +9,15 @@
 
 import { getFirmwareIndex as getFirmwareIndexImpl } from './firmwareIndex.js'
 import { getVersionOptions as getVersionOptionsImpl } from './firmwareIndex.js'
-import { getVendors as getVendorsImpl, getRadios as getRadiosImpl, getTargets as getTargetsImpl } from './hardwareTargets.js'
+import { getVendors as getVendorsImpl, getRadios as getRadiosImpl, getTargets as getTargetsImpl, getTargetByKey as getTargetByKeyImpl } from './hardwareTargets.js'
 import { getLuaScriptUrl as getLuaScriptUrlImpl } from './lua.js'
 import { getSettings as getSettingsImpl, generateFirmware as generateFirmwareImpl } from './firmware.js'
 import { buildFirmwareUrl as buildFirmwareUrlImpl } from './urls.js'
-import { getDownloadFilename as getDownloadFilenameImpl } from './downloadFilename.js'
+import { getDownloadFilenameFromBuildContext } from './downloadFilename.js'
+import { getFirmwareTypeForFlavor, getTargetTypeForFlavor, type FirmwareFlavor } from './types.js'
 import type {
+    BuildContext,
     FirmwareContext,
-    FirmwareContextPartial,
     FirmwareIndex,
     GetSettingsResult,
     GetTargetsOptionsInstance,
@@ -29,22 +30,47 @@ import type {
 import type { BuildFirmwareUrlResult } from './urls.js'
 
 /**
- * Encapsulates baseUrl and firmwareType; owns asset/index/targets usage and context-based operations.
+ * Encapsulates baseUrl and flavor (tx, rx, txbp, vrx, aat, timer); maps flavor to firmware/backpack
+ * asset path internally. Use one instance per directory and flavor.
  */
 export class FirmwareConfig {
     readonly #baseUrl: string
     readonly #firmwareType: 'firmware' | 'backpack'
+    readonly #targetType: string
 
-    constructor(baseUrl: string, firmwareType: 'firmware' | 'backpack') {
+    constructor(baseUrl: string, flavor: FirmwareFlavor) {
         this.#baseUrl = baseUrl
-        this.#firmwareType = firmwareType
+        this.#firmwareType = getFirmwareTypeForFlavor(flavor)
+        this.#targetType = getTargetTypeForFlavor(flavor)
     }
 
-    #buildContext(partial: FirmwareContextPartial): FirmwareContext {
+    /** Asset path type: 'firmware' (Tx/Rx) or 'backpack' (TxBP, Vrx, Aat, Timer). */
+    get firmwareType(): 'firmware' | 'backpack' {
+        return this.#firmwareType
+    }
+
+    /** Target type string for this flavor: 'tx', 'rx', 'txbp', 'vrx', 'aat', or 'timer'. */
+    get targetType(): string {
+        return this.#targetType
+    }
+
+    async #resolveContext(build: BuildContext): Promise<FirmwareContext> {
+        const target = await getTargetByKeyImpl(
+            this.#baseUrl,
+            this.#firmwareType,
+            this.#targetType,
+            build.targetKey
+        )
+        if (!target) throw new Error(`Unknown target key: ${build.targetKey}`)
         return {
-            ...partial,
             baseUrl: this.#baseUrl,
+            version: build.version ?? '',
+            versionLabel: build.versionLabel,
             firmwareType: this.#firmwareType,
+            targetType: this.#targetType,
+            radio: target.radio,
+            target,
+            options: build.options,
         }
     }
 
@@ -56,12 +82,12 @@ export class FirmwareConfig {
         return getVersionOptionsImpl(this.#baseUrl, this.#firmwareType, params)
     }
 
-    getVendors(targetType: string): Promise<{ id: string; name: string }[]> {
-        return getVendorsImpl(this.#baseUrl, this.#firmwareType, targetType)
+    getVendors(): Promise<{ id: string; name: string }[]> {
+        return getVendorsImpl(this.#baseUrl, this.#firmwareType, this.#targetType)
     }
 
-    getRadios(vendorId: string, targetType: string): Promise<{ id: string; label: string }[]> {
-        return getRadiosImpl(this.#baseUrl, this.#firmwareType, vendorId, targetType)
+    getRadios(vendorId: string): Promise<{ id: string; label: string }[]> {
+        return getRadiosImpl(this.#baseUrl, this.#firmwareType, vendorId, this.#targetType)
     }
 
     getTargets(options: GetTargetsOptionsInstance): Promise<TargetSelectOption[]> {
@@ -69,6 +95,7 @@ export class FirmwareConfig {
             ...options,
             baseUrl: this.#baseUrl,
             firmwareType: this.#firmwareType,
+            targetType: this.#targetType,
         })
     }
 
@@ -76,19 +103,25 @@ export class FirmwareConfig {
         return getLuaScriptUrlImpl(this.#baseUrl, this.#firmwareType, version, versionLabel)
     }
 
-    getSettings(deviceType: string, context: FirmwareContextPartial): Promise<GetSettingsResult> {
-        return getSettingsImpl(deviceType, this.#buildContext(context))
+    getSettings(deviceType: string, context: BuildContext): Promise<GetSettingsResult> {
+        return this.#resolveContext(context).then((full) => getSettingsImpl(deviceType, full))
     }
 
-    generateFirmware(context: FirmwareContextPartial): Promise<[FirmwareFile[], GenerateFirmwareMetadata]> {
-        return generateFirmwareImpl(this.#buildContext(context))
+    generateFirmware(context: BuildContext): Promise<[FirmwareFile[], GenerateFirmwareMetadata]> {
+        return this.#resolveContext(context).then((full) => generateFirmwareImpl(full))
     }
 
-    buildFirmwareUrl(context: FirmwareContextPartial): BuildFirmwareUrlResult {
-        return buildFirmwareUrlImpl(this.#buildContext(context))
+    async buildFirmwareUrl(context: BuildContext): Promise<BuildFirmwareUrlResult> {
+        const full = await this.#resolveContext(context)
+        return buildFirmwareUrlImpl(full)
     }
 
-    getDownloadFilename(ext: string = '.bin.gz', context?: FirmwareContextPartial | null): string {
-        return getDownloadFilenameImpl(ext, context ? this.#buildContext(context) : undefined)
+    getDownloadFilename(ext: string = '.bin.gz', context?: BuildContext | null): string {
+        if (!context) return getDownloadFilenameFromBuildContext(ext, this.#firmwareType, { targetKey: '' })
+        return getDownloadFilenameFromBuildContext(ext, this.#firmwareType, {
+            versionLabel: context.versionLabel,
+            targetKey: context.targetKey,
+            options: context.options,
+        })
     }
 }

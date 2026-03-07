@@ -18,32 +18,27 @@
 import { ref, computed, watch, watchPostEffect } from 'vue';
 import { store } from '../js/state';
 import { FirmwareConfig } from 'elrs-firmware-config';
-import type { FirmwareTarget } from 'elrs-firmware-config';
+import type { TargetSelectOption } from 'elrs-firmware-config';
 
 const baseUrl = './assets';
 const firmwareConfig = computed(() =>
-  store.firmware ? new FirmwareConfig(baseUrl, store.firmware) : null
+  store.flavor ? new FirmwareConfig(baseUrl, store.flavor) : null
 );
 
 let flashBranch = ref(false);
 let versions = ref<{ title: string; value: string }[]>([]);
 let vendors = ref<{ id: string; name: string }[]>([]);
 let radios = ref<{ id: string; label: string }[]>([]);
-let targets = ref<{ title: string; value: FirmwareTarget }[]>([]);
+let targets = ref<TargetSelectOption[]>([]);
 let luaUrl = ref<string | null>(null);
 let hasUrlParams = ref(false);
 
 function setTargetFromParams() {
-  let urlParams = new URLSearchParams(window.location.search);
-  let target = urlParams.get('target');
-  if (target) {
+  const urlParams = new URLSearchParams(window.location.search);
+  const targetKey = urlParams.get('target');
+  if (targetKey) {
     hasUrlParams.value = true;
-    store.target = {
-      vendor: target.split('.')[0],
-      radio: target.split('.')[1],
-      target: target.split('.')[2],
-      config: {}
-    }
+    store.target = { title: '', value: targetKey, config: {} };
   }
 }
 
@@ -71,7 +66,7 @@ watchPostEffect(async () => {
     return;
   }
   try {
-    const list = await config.getVendors(store.targetType ?? '');
+    const list = await config.getVendors();
     vendors.value = list;
     store.vendor = null;
     store.radio = null;
@@ -88,7 +83,7 @@ watchPostEffect(async () => {
     return;
   }
   try {
-    const list = await config.getRadios(vendor, store.targetType ?? '');
+    const list = await config.getRadios(vendor);
     radios.value = list;
     if (list.length === 1) store.radio = list[0].id;
     else store.radio = null;
@@ -108,7 +103,6 @@ watchPostEffect(async () => {
   const versionLabel = versionItem?.title ?? null;
   try {
     const list = await config.getTargets({
-      targetType: store.targetType ?? '',
       vendor: store.vendor,
       radio: store.radio,
       version: store.version,
@@ -118,8 +112,8 @@ watchPostEffect(async () => {
     targets.value = list;
     let keepTarget = false;
     for (const item of list) {
-      if (store.target && store.target.vendor === item.value.vendor && store.target.radio === item.value.radio && store.target.target === item.value.target) {
-        store.target.config = item.value.config;
+      if (store.target?.value === item.value) {
+        store.target = item;
         keepTarget = true;
         break;
       }
@@ -160,7 +154,7 @@ const radioItems = computed(() =>
 
 const targetModel = computed({
   get: () => store.target ?? undefined,
-  set: (v) => { store.target = v ?? null },
+  set: (v: TargetSelectOption | undefined) => { store.target = v ?? null; },
 });
 </script>
 
@@ -181,6 +175,7 @@ const targetModel = computed({
     <VSelect :items="radioItems" v-model="store.radio" density="compact" label="Radio Frequency"
              :disabled="!store.vendor || hasUrlParams"/>
     <VAutocomplete :items="targets" v-model="targetModel" density="compact" label="Hardware Target"
+             item-title="title" item-value="value" return-object
              :disabled="!store.version || hasUrlParams"/>
     <a :href="luaUrl ?? undefined" download>
       <VBtn :disabled="!luaUrl">Download ELRS Lua Script</VBtn>

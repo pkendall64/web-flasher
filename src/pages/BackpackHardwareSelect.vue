@@ -18,19 +18,19 @@
 import { ref, computed, watch, watchPostEffect } from 'vue';
 import { store } from '../js/state';
 import { FirmwareConfig } from 'elrs-firmware-config';
-import type { FirmwareTarget } from 'elrs-firmware-config';
+import type { TargetSelectOption } from 'elrs-firmware-config';
 
 defineProps<{ vendorLabel?: string }>()
 
 const baseUrl = './assets';
 const firmwareConfig = computed(() =>
-  store.firmware ? new FirmwareConfig(baseUrl, store.firmware) : null
+  store.flavor ? new FirmwareConfig(baseUrl, store.flavor) : null
 );
 
 let flashBranch = ref(false);
 let versions = ref<{ title: string; value: string }[]>([]);
 let vendors = ref<{ id: string; name: string }[]>([]);
-let targets = ref<{ title: string; value: FirmwareTarget }[]>([]);
+let targets = ref<TargetSelectOption[]>([]);
 
 watchPostEffect(async () => {
   const config = firmwareConfig.value;
@@ -51,12 +51,12 @@ watch([() => store.version, versions], () => {
 
 watchPostEffect(async () => {
   const config = firmwareConfig.value;
-  if (!config || !store.version || !store.targetType) {
+  if (!config || !store.version) {
     vendors.value = [];
     return;
   }
   try {
-    const list = await config.getVendors(store.targetType);
+    const list = await config.getVendors();
     vendors.value = list;
     store.vendor = null;
   } catch {
@@ -66,7 +66,7 @@ watchPostEffect(async () => {
 
 watchPostEffect(async () => {
   const config = firmwareConfig.value;
-  if (!config || !store.version || !store.targetType) {
+  if (!config || !store.version) {
     targets.value = [];
     return;
   }
@@ -74,7 +74,6 @@ watchPostEffect(async () => {
   const versionLabel = versionItem?.title ?? null;
   try {
     const list = await config.getTargets({
-      targetType: store.targetType,
       vendor: store.vendor,
       version: store.version,
       versionLabel,
@@ -83,14 +82,14 @@ watchPostEffect(async () => {
     targets.value = list;
     let keepTarget = false;
     for (const item of list) {
-      if (store.target && store.target.vendor === item.value.vendor && store.target.target === item.value.target) {
-        store.target.config = item.value.config;
+      if (store.target?.value === item.value) {
+        store.target = item;
         keepTarget = true;
         break;
       }
     }
     if (list.length === 1) {
-      store.target = list[0].value;
+      store.target = list[0];
       keepTarget = true;
     }
     if (!keepTarget) store.target = null;
@@ -142,6 +141,7 @@ const vendorItems = computed(() =>
     <br>
     <VSelect :items="versions" v-model="store.version" label="Firmware Version"/>
     <VSelect :items="vendorItems" v-model="store.vendor" :label="vendorLabel" :disabled="!store.version"/>
-    <VAutocomplete :items="targets" v-model="store.target" label="Hardware Target" :disabled="!store.vendor"/>
+    <VAutocomplete :items="targets" v-model="store.target" label="Hardware Target"
+                  item-title="title" item-value="value" return-object :disabled="!store.vendor"/>
   </VContainer>
 </template>

@@ -15,7 +15,8 @@
   along with this program.  If not, see https://www.gnu.org/licenses/.
 -->
 <script setup lang="ts">
-import {resetState, store} from './js/state';
+import { resetState, setFlavor, store } from './js/state';
+import { FirmwareFlavor } from 'elrs-firmware-config';
 
 import FirmwareSelect from './pages/FirmwareSelect.vue';
 import MainHardwareSelect from './pages/MainHardwareSelect.vue';
@@ -51,13 +52,9 @@ function disableNext() {
 }
 
 // Handle any query params
-let urlParams = new URLSearchParams(window.location.search);
-store.targetType = urlParams.get('type');
-if (store.targetType === "tx" || store.targetType === "rx")
-  store.firmware = 'firmware'
-else if (store.targetType)
-  store.firmware = 'backpack'
-
+const urlParams = new URLSearchParams(window.location.search);
+const flavor = FirmwareFlavor.fromString(urlParams.get('type'));
+if (flavor) setFlavor(flavor);
 store.options.flashMethod = urlParams.get('method');
 
 </script>

@@ -15,11 +15,13 @@ export { MelodyParser } from './melody.js'
 export type { MelodyNote } from './melody.js'
 export { FirmwareConfig } from './FirmwareConfig.js'
 export { RADIO_LABELS } from './hardwareTargets.js'
+export { FirmwareFlavor } from './types.js'
 export type {
+    BuildContext,
     FirmwareContext,
-    FirmwareContextPartial,
     FirmwareTarget,
     TargetConfig,
+    TargetKey,
     HardwareLayout,
     FirmwareOptions,
     ConfigureOptions,

@@ -15,15 +15,15 @@
   along with this program.  If not, see https://www.gnu.org/licenses/.
 -->
 <script setup lang="ts">
-import {store} from '../js/state';
+import { setFlavor } from '../js/state';
+import { FirmwareFlavor } from 'elrs-firmware-config';
 import HoverCard from '../components/HoverCard.vue';
 
 const emit = defineEmits<{ (e: 'onClick'): void }>();
 
-function setFirmware(firmware: 'firmware' | 'backpack', targetType: string) {
-  store.firmware = firmware
-  store.targetType = targetType
-  emit('onClick')
+function selectFlavor(flavor: FirmwareFlavor) {
+  setFlavor(flavor);
+  emit('onClick');
 }
 </script>
 
@@ -35,14 +35,14 @@ function setFirmware(firmware: 'firmware' | 'backpack', targetType: string) {
     </div>
     <VRow class="tile-row">
       <VCol md="6">
-        <HoverCard min-height="100%" @click="setFirmware('firmware', 'tx')"
+        <HoverCard min-height="100%" @click="selectFlavor(FirmwareFlavor.Tx)"
                     image="transmitter_6275858.png" hover-image="transmitter_6276574.png"
                     title="Transmitter"
                     text="Update your external transmitter module, JR Bay (Micro) or Nano module; or an internal module
                     built into your radio handset."/>
       </VCol>
       <VCol md="6">
-        <HoverCard min-height="100%" @click="setFirmware('firmware', 'rx')"
+        <HoverCard min-height="100%" @click="selectFlavor(FirmwareFlavor.Rx)"
                     image="reciever_6276002.png" hover-image="reciever_6276814.png"
                     title="Receiver"
                     text="Serial connected and PWM receivers alike can be updated here."/>
@@ -56,28 +56,28 @@ function setFirmware(firmware: 'firmware' | 'backpack', targetType: string) {
     </div>
     <VRow class="tile-row">
       <VCol md="3">
-        <HoverCard min-height="100%" @click="setFirmware('backpack', 'txbp')"
+        <HoverCard min-height="100%" @click="selectFlavor(FirmwareFlavor.TxBP)"
                     image="backpack_723137.png" hover-image="backpack_723278.png"
                     title="Transmitter Module"
                     text="Built in to most transmitters, it communicates with the other backpacks or via WiFi to a computer
                     running Mission Planner (or other) for MAVLink craft."/>
       </VCol>
       <VCol md="3">
-        <HoverCard min-height="100%" @click="setFirmware('backpack', 'vrx')"
+        <HoverCard min-height="100%" @click="selectFlavor(FirmwareFlavor.Vrx)"
                     image="vr-glasses_8736938.png" hover-image="vr-glasses_8737003.png"
                     title="Video Receiver"
                     text="A built-in VRx backpack like the HDZero goggles backpack, or the SkyZone ELRS backpack; or a
                     DIY solution connected to a VRx allows you to always have your goggles on the right channel."/>
       </VCol>
       <VCol md="3">
-        <HoverCard min-height="100%" @click="setFirmware('backpack', 'aat')"
+        <HoverCard min-height="100%" @click="selectFlavor(FirmwareFlavor.Aat)"
                     image="satellite_2637312.png" hover-image="satellite_2637314.png"
                     title="Antenna Tracker"
                     text="Flying long-range and need your antenna pointed in just the right direction? This is the backpack
                     for you!"/>
       </VCol>
       <VCol md="3">
-        <HoverCard min-height="100%" @click="setFirmware('backpack', 'timer')"
+        <HoverCard min-height="100%" @click="selectFlavor(FirmwareFlavor.Timer)"
                     image="stopwatch_4354897.png" hover-image="stopwatch_4355918.png"
                     title="Race Timer"
                     text="Connects to the RotorHazard race timing system and sends OSD message with lap times and current
