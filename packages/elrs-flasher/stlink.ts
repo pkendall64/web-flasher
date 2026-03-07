@@ -149,15 +149,27 @@ export class STLink {
     }
 
     connect = async (config: STLinkConfig, handler: () => void): Promise<void> => {
+        const device = await navigator.usb.requestDevice({
+            filters: libstlink.usb.filters,
+        })
+        await this.connectWithDevice(device, config, handler)
+    }
+
+    /**
+     * Connect using an already-selected USB device (e.g. from navigator.usb.requestDevice).
+     * Use this when the caller has obtained the device beforehand (e.g. for unified flashFirmware API).
+     */
+    connectWithDevice = async (
+        device: USBDevice,
+        config: STLinkConfig,
+        handler: () => void
+    ): Promise<void> => {
         this.config = config
         if (this.stlink !== null) {
             await this.stlink.detach()
             this.on_disconnect()
         }
         try {
-            const device = await navigator.usb.requestDevice({
-                filters: libstlink.usb.filters,
-            })
             navigator.usb.ondisconnect = (e) => {
                 if (e.device === device) handler()
             }

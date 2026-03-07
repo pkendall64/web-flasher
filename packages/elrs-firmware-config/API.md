@@ -58,9 +58,9 @@ Minimal context for `generateFirmware`, `getDownloadFilename`, `buildFirmwareUrl
 
 String path into targets.json: `"vendor.radio.target"` for main firmware (Tx/Rx) or `"vendor.target"` for backpack. Returned as `value` from `getTargets()`; pass as `targetKey` in `BuildContext`.
 
-### `FirmwareContext`
+### `FirmwareContext` (internal, not exported)
 
-Full context (includes `baseUrl`, `firmwareType`, `targetType`, resolved `target`). Used **internally** by the library after resolving `targetKey`; callers use `BuildContext` only.
+Full context (includes `baseUrl`, `firmwareType`, `targetType`, resolved `target`). Used internally by the library after resolving `targetKey`; callers use `BuildContext` only.
 
 ### `TargetSelectOption`
 

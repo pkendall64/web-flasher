@@ -9,6 +9,7 @@ Device flashing library for ExpressLRS firmware. Provides ST-Link (WebUSB), ESP 
 ## Contents
 
 - [Types](#types)
+- [Unified flash API](#unified-flash-api)
 - [Flashers](#flashers)
 - [Passthrough & bootloader](#passthrough--bootloader)
 - [Transport](#transport)
@@ -90,6 +91,97 @@ Params for `createSerialFlasher()`. Used when platform (ESP vs STM32) is determi
 ### `FlasherDeviceType`
 
 `'TX' | 'RX' | string` — Device type for ESP flasher.
+
+### `FlashMethod`
+
+`'stlink' | 'uart' | 'betaflight' | 'etx' | 'passthru'` — Connection method; `stlink` uses WebUSB, others use Web Serial.
+
+### `FlashTransport`
+
+Discriminated union for the transport argument of `flashFirmware`:
+
+- `{ type: 'usb', device: USBDevice }` — For ST-Link (obtain via `navigator.usb.requestDevice({ filters: await getSTLinkUsbFilters() })`).
+- `{ type: 'serial', port: SerialPort }` — For ESP/Xmodem (obtain via `navigator.serial.requestPort()` then open the port).
+
+### `FlashFirmwareParams`
+
+Options for `flashFirmware()`.
+
+| Property      | Type | Description |
+|---------------|------|-------------|
+| `transport`   | `FlashTransport` | Pre-obtained USB device or Serial port. |
+| `firmware`   | `[FirmwareFile[], GenerateFirmwareMetadata]` | Return value of `generateFirmware(context)` from elrs-firmware-config. |
+| `method`     | `FlashMethod` | How to connect (`stlink`, `uart`, etc.). |
+| `term`       | `Terminal` | Logger. |
+| `progress`   | `ProgressCallback` (optional) | Progress callback. |
+| `erase`      | `boolean` (optional) | For serial: erase before write. Default `false`. Ignored for ST-Link. |
+
+---
+
+## Unified flash API
+
+Single entry point for flashing firmware produced by elrs-firmware-config. Use this when you have already called `generateFirmware(context)` and obtained a USB or Serial transport.
+
+### `getTransportKind(metadata, method)` → `'usb' | 'serial'`
+
+Tells you which transport to request from the user. Use the result to call either `navigator.usb.requestDevice(...)` or `navigator.serial.requestPort()`.
+
+- **Parameters:** `metadata` — the second element of the tuple returned by `generateFirmware`. `method` — the chosen flash method.
+- **Returns:** `'usb'` for ST-Link, `'serial'` for UART/Betaflight/EdgeTX/passthru.
+
+### `getSTLinkUsbFilters()` → `Promise<USBDeviceFilter[]>`
+
+Returns the WebUSB filters for ST-Link devices. Use when `getTransportKind` returned `'usb'`:
+
+```js
+const filters = await getSTLinkUsbFilters()
+const device = await navigator.usb.requestDevice({ filters })
+```
+
+### `flashFirmware(params)` → `Promise<void>`
+
+Connects to the device, flashes the firmware, and closes the connection. Handles ST-Link, ESP, and Xmodem internally based on `transport` and `method`.
+
+**Example (serial):**
+
+```js
+import { flashFirmware, getTransportKind } from 'elrs-flasher'
+import { config } from 'elrs-firmware-config'
+
+const [files, metadata] = await config.generateFirmware(context)
+const kind = getTransportKind(metadata, 'uart')
+// kind === 'serial' → show "Select serial port"
+const port = await navigator.serial.requestPort()
+await port.open({ baudRate: 460800 })
+const term = { writeln: (s) => console.log(s) }
+await flashFirmware({
+  transport: { type: 'serial', port },
+  firmware: [files, metadata],
+  method: 'uart',
+  term,
+  progress: (file, percent, total) => { ... },
+  erase: false,
+})
+```
+
+**Example (ST-Link):**
+
+```js
+const [files, metadata] = await config.generateFirmware(context)
+const kind = getTransportKind(metadata, 'stlink')
+// kind === 'usb' → show "Select ST-Link"
+const filters = await getSTLinkUsbFilters()
+const device = await navigator.usb.requestDevice({ filters })
+await flashFirmware({
+  transport: { type: 'usb', device },
+  firmware: [files, metadata],
+  method: 'stlink',
+  term,
+  progress: (file, percent, total) => { ... },
+})
+```
+
+Errors (e.g. `MismatchError`, `WrongMCU`) are thrown as-is; use `normalizeError` and `isFlasherError` for handling.
 
 ---
 

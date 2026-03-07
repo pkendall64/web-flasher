@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+/// <reference types="w3c-web-usb" />
 
 declare module 'virtual:pwa-register/vue' {
   import type { Ref } from 'vue'

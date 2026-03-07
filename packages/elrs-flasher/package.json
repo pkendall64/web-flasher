@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "crypto-js": "^4.2.0",
+    "elrs-firmware-config": "file:../elrs-firmware-config",
     "esptool-js": "^0.5.7"
   },
   "devDependencies": {
