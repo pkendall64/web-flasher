@@ -11,5 +11,6 @@
     { "path": "packages/elrs-flasher" },
     { "path": "packages/elrs-firmware-config" }
   ],
+  "include": [],
   "exclude": ["node_modules", "packages/*/dist"]
 }
