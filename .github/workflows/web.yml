@@ -38,6 +38,12 @@ jobs:
         uses: actions/upload-pages-artifact@v5
         with:
           path: dist
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
 
   deploy:
     environment:
