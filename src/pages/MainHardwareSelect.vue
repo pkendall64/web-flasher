@@ -27,8 +27,13 @@ function setTargetFromParams() {
   }
 }
 
+function metadataUrl(path) {
+  if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) return path
+  return `${path}?view=browser`
+}
+
 watchPostEffect(() => {
-  fetch(`./assets/${store.firmware}/index.json`).then(r => r.json()).then(r => {
+  fetch(metadataUrl(`./assets/${store.firmware}/index.json`)).then(r => r.json()).then(r => {
     firmware.value = r
   })
 })
@@ -72,7 +77,7 @@ watchPostEffect(() => {
   if (store.version) {
     store.folder = `./assets/${store.firmware}`
 
-    fetch(`./assets/${store.firmware}/hardware/targets.json`).then(r => r.json()).then(r => {
+    fetch(metadataUrl(`./assets/${store.firmware}/hardware/targets.json`)).then(r => r.json()).then(r => {
       hardware.value = r
       store.vendor = null
       vendors.value = []

@@ -1,11 +1,27 @@
 <script setup>
+import { onBeforeUnmount } from 'vue'
 import { useRegisterSW } from 'virtual:pwa-register/vue'
+
+const UPDATE_INTERVAL_MS = 60_000
+let updateInterval = null
 
 const {
   offlineReady,
   needRefresh,
   updateServiceWorker,
-} = useRegisterSW()
+} = useRegisterSW({
+  onRegisteredSW(_swUrl, registration) {
+    updateInterval = window.setInterval(() => {
+      if (navigator.onLine) registration?.update()
+    }, UPDATE_INTERVAL_MS)
+  },
+})
+
+onBeforeUnmount(() => {
+  if (updateInterval !== null) {
+    window.clearInterval(updateInterval)
+  }
+})
 
 function close() {
   offlineReady.value = false

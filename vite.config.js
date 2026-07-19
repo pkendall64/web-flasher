@@ -10,12 +10,24 @@ export default defineConfig({
     vue(),
     vuetify(),
     VitePWA({
+      registerType: 'autoUpdate',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         runtimeCaching: [
           {
-            // Cache firmware files for a device once they are requested the first time
-            // This allows building again when being offline
+            // Browser tabs ask metadata with ?view=browser so they always revalidate
+            urlPattern: /\/assets\/(firmware|backpack)\/(index\.json|hardware\/targets\.json)(\?.*)?$/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'firmware-metadata',
+              networkTimeoutSeconds: 3,
+              expiration: {
+                maxEntries: 20,
+              },
+            },
+          },
+          {
+            // Cache firmware files for offline flashing, including metadata bundled by the service worker
             urlPattern: /\/assets\/(firmware|backpack)\/.*/i,
             handler: 'CacheFirst',
             options: {
