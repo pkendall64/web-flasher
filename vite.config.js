@@ -13,6 +13,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // Downloads are navigations in Firefox; never turn asset downloads into index.html.
+        navigateFallbackDenylist: [/\/assets\//],
         runtimeCaching: [
           {
             // Browser tabs ask metadata with ?view=browser so they always revalidate
