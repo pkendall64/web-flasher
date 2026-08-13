@@ -12,6 +12,8 @@ export default defineConfig({
     VitePWA({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // Downloads are navigations in Firefox; never turn asset downloads into index.html.
+        navigateFallbackDenylist: [/\/assets\//],
         runtimeCaching: [
           {
             // Cache firmware files for a device once they are requested the first time
