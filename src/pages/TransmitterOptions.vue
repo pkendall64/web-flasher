@@ -1,6 +1,7 @@
 <script setup>
 import {onMounted, watch, ref} from 'vue';
 import {store} from "../js/state.js";
+import {t} from '../i18n'
 import {getSettings, saveSettings, clearSettings as clearStoredSettings} from "../js/storage.js";
 import BindPhraseInput from "../components/BindPhraseInput.vue";
 import RFSelect from "../components/RFSelect.vue";
@@ -89,8 +90,8 @@ function clearSettings() {
 
 <template>
   <VContainer max-width="600px">
-    <VCardTitle>Transmitter Options</VCardTitle>
-    <VCardText>Set the flashing options and method for your <b>{{ store.target?.config?.product_name }}</b></VCardText>
+    <VCardTitle>{{ t('WebFlasher.TransmitterOptions') }}</VCardTitle>
+    <VCardText>{{ t('WebFlasher.OptionsDescription', {device: store.target?.config?.product_name}) }}</VCardText>
     <br>
     <VForm autocomplete="on" method="POST">
       <BindPhraseInput v-model="store.options.uid" :bind-phrase-text="bindPhraseText" @update:bindPhraseText="bindPhraseText = $event"/>
@@ -101,7 +102,7 @@ function clearSettings() {
       <FlashMethodSelect v-model="store.options.flashMethod" :methods="store.target?.config?.upload_methods"/>
 
       <VExpansionPanels variant="popout">
-        <VExpansionPanel title="Advanced Settings">
+        <VExpansionPanel :title="t('WebFlasher.AdvancedSettings')">
           <VExpansionPanelText>
             <WiFiAutoOn v-model="store.options.wifiOnInternal"/>
             <TXOptions/>
@@ -110,7 +111,7 @@ function clearSettings() {
       </VExpansionPanels>
       
       <VBtn color="error" variant="outlined" size="small" @click="clearSettings" class="mt-4">
-        Clear Stored Settings
+        {{ t('WebFlasher.ClearStoredSettings') }}
       </VBtn>
     </VForm>
   </VContainer>

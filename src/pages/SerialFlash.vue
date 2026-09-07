@@ -5,6 +5,7 @@ import {generateFirmware} from "../js/firmware.js";
 import {XmodemFlasher} from "../js/xmodem.js";
 import {ESPFlasher} from "../js/espflasher.js";
 import {MismatchError, WrongMCU} from "../js/error.js";
+import {t} from '../i18n'
 
 watchPostEffect(async (onCleanup) => {
   onCleanup(closeDevice)
@@ -127,7 +128,7 @@ async function connect() {
       enableFlash.value = true
     } catch (e) {
       if (e instanceof MismatchError) {
-        term.writeln('Target mismatch, flashing cancelled')
+        term.writeln(t('WebFlasher.TargetMismatchCancelled'))
         failed.value = true
         enableFlash.value = true
       } else if (e instanceof WrongMCU) {
@@ -135,7 +136,7 @@ async function connect() {
         failed.value = true
       } else {
         console.log(e)
-        term.writeln('Failed to connect to device, restart device and try again')
+        term.writeln(t('WebFlasher.FailedConnectDevice'))
         failed.value = true
       }
     }
@@ -175,17 +176,15 @@ async function flash() {
 
 <template>
   <VContainer max-width="600px">
-    <VCardTitle>Flash Firmware File(s)</VCardTitle>
-    <VCardText>The firmware file(s) have been configured for your <b>{{ store.target?.config?.product_name }}</b> with
-      the specified options.
-    </VCardText>
+    <VCardTitle>{{ t('WebFlasher.FlashFirmwareFiles') }}</VCardTitle>
+    <VCardText>{{ t('WebFlasher.FirmwareConfigured', {device: store.target?.config?.product_name}) }}</VCardText>
 
     <VStepperVertical v-model="step" :hide-actions="true" flat>
-      <VStepperVerticalItem title="Connect to serial UART" value="1" :hide-actions="true" :complete="step > 1"
+      <VStepperVerticalItem :title="t('WebFlasher.ConnectSerialUart')" value="1" :hide-actions="true" :complete="step > 1"
                             :color="step > 1 ? 'green' : 'blue'">
-        <VBtn @click="connect" color="primary" :disabled="selectingSerial">Connect</VBtn>
+        <VBtn @click="connect" color="primary" :disabled="selectingSerial">{{ t('SerialConnectionForm.Connect') }}</VBtn>
       </VStepperVerticalItem>
-      <VStepperVerticalItem title="Enter flashing mode" value="2" :hide-actions="true" :complete="step > 2"
+      <VStepperVerticalItem :title="t('WebFlasher.EnterFlashingMode')" value="2" :hide-actions="true" :complete="step > 2"
                             :color="step > 2 ? 'green' : (failed ? 'red' : 'blue')">
         <template v-for="line in log">
           <VLabel>{{ line }}</VLabel>
@@ -194,49 +193,49 @@ async function flash() {
         <VContainer v-if="failed || enableFlash">
           <br/>
           <VRow v-if="enableFlash && allowErase">
-            <VCheckbox v-model="fullErase" label="Full chip erase"/>
+            <VCheckbox v-model="fullErase" :label="t('WebFlasher.FullChipErase')"/>
           </VRow>
           <VRow>
             <VCol v-if="enableFlash && !failed">
-              <VBtn @click="flash" color="primary">Flash</VBtn>
+              <VBtn @click="flash" color="primary">{{ t('ConfiguratorView.Flash') }}</VBtn>
             </VCol>
             <VCol v-if="enableFlash && failed">
-              <VBtn @click="flash" color="amber">Flash Anyway</VBtn>
+              <VBtn @click="flash" color="amber">{{ t('WebFlasher.FlashAnyway') }}</VBtn>
             </VCol>
             <VCol v-if="failed">
-              <VBtn @click="closeDevice" color="red">Try Again</VBtn>
+              <VBtn @click="closeDevice" color="red">{{ t('WebFlasher.TryAgain') }}</VBtn>
             </VCol>
           </VRow>
         </VContainer>
       </VStepperVerticalItem>
-      <VStepperVerticalItem title="Flashing" value="3" :hide-actions="true" :complete="flashComplete"
+      <VStepperVerticalItem :title="t('WebFlasher.Flashing')" value="3" :hide-actions="true" :complete="flashComplete"
                             :color="flashComplete ? 'green' : (failed ? 'red' : 'blue')">
         <VRow>
           <VCol class="d-flex align-center flex-column flex-grow-0 flex-shrink-0">
-            <VLabel v-if="progressText===''">Erasing flash, please wait...</VLabel>
-            <VLabel v-else>Flashing file {{ progressText }}</VLabel>
+            <VLabel v-if="progressText===''">{{ t('WebFlasher.ErasingFlash') }}</VLabel>
+            <VLabel v-else>{{ t('WebFlasher.FlashingFile', {progress: progressText}) }}</VLabel>
             <br>
             <VProgressCircular :model-value="progress" :rotate="360" :size="100" :width="15"
                                :color="flashComplete ? 'green' : (failed ? 'red' : 'blue')">
               <template v-slot:default> {{ progress }} %</template>
             </VProgressCircular>
             <div v-if="failed">
-              <VLabel>Flash failed</VLabel>
+              <VLabel>{{ t('WebFlasher.FlashFailed') }}</VLabel>
             </div>
-            <VBtn v-if="failed" @click="closeDevice" color="red">Try Again</VBtn>
+            <VBtn v-if="failed" @click="closeDevice" color="red">{{ t('WebFlasher.TryAgain') }}</VBtn>
           </VCol>
           <VCol cols="1" class="flex-grow-1 flex-shrink-0"/>
         </VRow>
       </VStepperVerticalItem>
-      <VStepperVerticalItem title="Done" value="4" :hide-actions="true" :complete="flashComplete"
+      <VStepperVerticalItem :title="t('WebFlasher.Done')" value="4" :hide-actions="true" :complete="flashComplete"
                             :color="flashComplete ? 'green' : (failed ? 'red' : 'blue')">
         <VContainer>
           <VRow>
             <VCol>
-              <VBtn v-if="flashComplete" @click="another" color="primary">Flash Another</VBtn>
+              <VBtn v-if="flashComplete" @click="another" color="primary">{{ t('ConfiguratorView.FlashAnother') }}</VBtn>
             </VCol>
             <VCol>
-              <VBtn v-if="flashComplete" @click="reset" color="secondary">Back to Start</VBtn>
+              <VBtn v-if="flashComplete" @click="reset" color="secondary">{{ t('ConfiguratorView.Back') }}</VBtn>
             </VCol>
           </VRow>
         </VContainer>
@@ -244,9 +243,9 @@ async function flash() {
     </VStepperVertical>
 
     <VSnackbar v-model="noDevice" vertical>
-      <div class="text-subtitle-1 pb-2">No Device Selected</div>
+      <div class="text-subtitle-1 pb-2">{{ t('WebFlasher.NoDeviceSelected') }}</div>
 
-      <p>A serial device must be selected to perform flashing.</p>
+      <p>{{ t('WebFlasher.SerialDeviceRequired') }}</p>
     </VSnackbar>
   </VContainer>
 </template>

@@ -1,18 +1,19 @@
 <script setup>
-import {ref} from "vue";
+import {computed} from "vue";
 import {store} from "../js/state.js";
+import {t} from '../i18n'
 
 let enabled = defineModel('enabled')
 let type = defineModel('type')
 type.value = "0"
 
-let items = ref([
-  {title: "RX as Internal TX module (Full-duplex)", value: "0"},
-  {title: "RX as External TX module (Half-duplex)", value: "1"}
+const items = computed(() => [
+  {title: t('WebFlasher.RxAsInternalTx'), value: "0"},
+  {title: t('WebFlasher.RxAsExternalTx'), value: "1"}
 ])
 </script>
 
 <template>
-  <VCheckbox v-model="enabled" :label="'Flash RX as TX' + (store.target.config.platform.startsWith('esp32') ? '' : ' (full-duplex internal module only)')"/>
+  <VCheckbox v-model="enabled" :label="t('WebFlasher.FlashRxAsTx', {suffix: store.target.config.platform.startsWith('esp32') ? '' : t('WebFlasher.FullDuplexInternalOnly')})"/>
   <VSelect v-model="type" :items="items" v-if="store.target.config.platform.startsWith('esp32') && enabled"/>
 </template>

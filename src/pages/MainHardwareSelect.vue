@@ -1,6 +1,7 @@
 <script setup>
 import {ref, watch, watchPostEffect} from 'vue';
 import {store} from '../js/state';
+import {t} from '../i18n'
 import {compareSemanticVersions} from '../js/version';
 
 let firmware = ref(null);
@@ -164,7 +165,7 @@ watch(() => store.target, (v, _oldValue) => {
 })
 
 function flashType() {
-  return flashBranch.value ? 'Branches' : 'Releases'
+  return flashBranch.value ? t('WebFlasher.Branches') : t('FirmwareVersionForm.Releases')
 }
 </script>
 
@@ -174,20 +175,18 @@ function flashType() {
   </VRow>
 
   <VContainer max-width="600px">
-    <VCardTitle>Hardware Selection</VCardTitle>
-    <VCardText>Choose the vendor specific hardware that you are flashing, if the hardware is not in the list then the
-      hardware is unsupported.
-    </VCardText>
+    <VCardTitle>{{ t('WebFlasher.HardwareSelection') }}</VCardTitle>
+    <VCardText>{{ t('WebFlasher.HardwareSelectionDescription') }}</VCardText>
     <br>
-    <VSelect :items="versions" v-model="store.version" density="compact" label="Firmware Version"/>
-    <VSelect :items="vendors" v-model="store.vendor" density="compact" label="Hardware Vendor"
+    <VSelect :items="versions" v-model="store.version" density="compact" :label="t('ConfiguratorView.FirmwareVersion')"/>
+    <VSelect :items="vendors" v-model="store.vendor" density="compact" :label="t('WebFlasher.HardwareVendor')"
              :disabled="!store.version || hasUrlParams"/>
-    <VSelect :items="radios" v-model="store.radio" density="compact" label="Radio Frequency"
+    <VSelect :items="radios" v-model="store.radio" density="compact" :label="t('WebFlasher.RadioFrequency')"
              :disabled="!store.vendor || hasUrlParams"/>
-    <VAutocomplete :items="targets" v-model="store.target" density="compact" label="Hardware Target"
+    <VAutocomplete :items="targets" v-model="store.target" density="compact" :label="t('WebFlasher.HardwareTarget')"
              :disabled="!store.version || hasUrlParams"/>
     <a :href="luaUrl" download>
-      <VBtn :disabled="!luaUrl">Download ELRS Lua Script</VBtn>
+      <VBtn :disabled="!luaUrl">{{ t('ConfiguratorView.DownloadLUAScript') }}</VBtn>
     </a>
   </VContainer>
 </template>

@@ -62,7 +62,7 @@ function imageClass(isHovering) {
   background-color: #F8F8F8;
   transition: all ease-in 300ms;
   box-shadow: none;
-  text-align: left;
+  text-align: start;
   padding: 0;
 }
 

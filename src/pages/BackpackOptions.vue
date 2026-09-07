@@ -2,6 +2,7 @@
 import {onMounted, watch, ref} from 'vue';
 import {store} from "../js/state.js";
 import {getSettings, saveSettings, clearSettings as clearStoredSettings} from "../js/storage.js";
+import {t} from '../i18n'
 import {watchEffect} from "vue";
 
 import BindPhraseInput from "../components/BindPhraseInput.vue";
@@ -71,8 +72,8 @@ function clearSettings() {
 
 <template>
   <VContainer max-width="600px">
-    <VCardTitle>Backpack Options</VCardTitle>
-    <VCardText>Set the flashing options and method for your <b>{{ store.name }}</b></VCardText>
+    <VCardTitle>{{ t('WebFlasher.BackpackOptions') }}</VCardTitle>
+    <VCardText>{{ t('WebFlasher.OptionsDescription', {device: store.name}) }}</VCardText>
     <br>
     <VForm autocomplete="on" method="POST">
       <BindPhraseInput v-model="store.options.uid" :bind-phrase-text="bindPhraseText" @update:bindPhraseText="bindPhraseText = $event"/>
@@ -83,7 +84,7 @@ function clearSettings() {
       <FlashMethodSelect v-model="store.options.flashMethod" :methods="store.target?.config?.upload_methods"/>
 
       <VBtn color="error" variant="outlined" size="small" @click="clearSettings" class="mt-4">
-        Clear Stored Settings
+        {{ t('WebFlasher.ClearStoredSettings') }}
       </VBtn>
     </VForm>
   </VContainer>

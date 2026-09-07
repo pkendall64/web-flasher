@@ -1,0 +1,17 @@
+{
+  "FirmwareVersionForm": {
+    "Releases": "リリース"
+  },
+  "ConfiguratorView": {
+    "DownloadLUAScript": "LUAスクリプトをダウンロード",
+    "Back": "戻る",
+    "Flash": "フラッシュ",
+    "FirmwareVersion": "ファームウェアのバージョン"
+  },
+  "FlashingMethodOptions": {
+    "FlashingMethod": "フラッシュ方法"
+  },
+  "SerialConnectionForm": {
+    "Connect": "接続"
+  }
+}

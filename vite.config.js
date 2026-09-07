@@ -57,6 +57,7 @@ export default defineConfig({
         'favicon.ico',
         'apple-touch-icon.png',
         'mask-icon.svg',
+        'locales/*/messages.json',
         'assets/{firmware,backpack}/index.json',
         'assets/{firmware,backpack}/**/targets.json',
       ],

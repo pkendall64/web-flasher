@@ -1,5 +1,6 @@
 <script setup>
 import {resetState, store} from './js/state';
+import {direction, locale, locales, setLocale, t} from './i18n';
 
 import FirmwareSelect from './pages/FirmwareSelect.vue';
 import MainHardwareSelect from './pages/MainHardwareSelect.vue';
@@ -47,7 +48,7 @@ store.options.flashMethod = urlParams.get('method');
 </script>
 
 <template>
-  <VApp>
+  <VApp :dir="direction">
     <VLayout>
       <ReloadPrompt />
       <VAppBar height="320">
@@ -62,10 +63,20 @@ store.options.flashMethod = urlParams.get('method');
 
         <div class="header-main">
           <h1>ExpressLRS&trade;</h1>
-          <h2>WEB FLASHER</h2>
+          <h2>{{ t('WebFlasher.Title') }}</h2>
         </div>
 
-        <div class="text-subtitle-2 position-absolute right-0 bottom-0">
+        <VSelect
+            class="language-selector"
+            :items="locales"
+            item-title="label"
+            item-value="value"
+            :label="t('WebFlasher.Language')"
+            :model-value="locale"
+            @update:model-value="setLocale"
+        />
+
+        <div class="text-subtitle-2 position-absolute bottom-0 git-hash">
           Git: @GITHASH@
         </div>
       </VAppBar>
@@ -78,13 +89,13 @@ store.options.flashMethod = urlParams.get('method');
             <VContainer max-width="1024px" v-else>
               <div class="containerMain">
 
-                <VStepper v-model="store.currentStep" :items="['Hardware', 'Options', 'Flashing']" hideActions>
+                <VStepper :items="[t('WebFlasher.Hardware'), t('WebFlasher.Options'), t('WebFlasher.Flashing')]" v-model="store.currentStep" hideActions>
                   <template v-slot:item.1>
                     <MainHardwareSelect v-if="store.firmware==='firmware'"/>
-                    <VRXHardwareSelect vendor-label="Transmitter Module" v-if="store.targetType==='txbp'"/>
-                    <VRXHardwareSelect vendor-label="VRx Type" v-if="store.targetType==='vrx'"/>
-                    <VRXHardwareSelect vendor-label="Antenna Tracker Type" v-if="store.targetType==='aat'"/>
-                    <VRXHardwareSelect vendor-label="Timer Type" v-if="store.targetType==='timer'"/>
+                    <VRXHardwareSelect :vendor-label="t('WebFlasher.TransmitterModule')" v-if="store.targetType==='txbp'"/>
+                    <VRXHardwareSelect :vendor-label="t('WebFlasher.VrxType')" v-if="store.targetType==='vrx'"/>
+                    <VRXHardwareSelect :vendor-label="t('WebFlasher.AntennaTrackerType')" v-if="store.targetType==='aat'"/>
+                    <VRXHardwareSelect :vendor-label="t('WebFlasher.TimerType')" v-if="store.targetType==='timer'"/>
                   </template>
                   <template v-slot:item.2>
                     <TransmitterOptions v-if="store.targetType==='tx'"/>
@@ -152,6 +163,17 @@ store.options.flashMethod = urlParams.get('method');
   letter-spacing: 1.075rem;
   font-weight: 200;
   margin: 0;
+}
+
+.language-selector {
+  position: absolute;
+  inset-block-start: 1rem;
+  inset-inline-end: 1rem;
+  width: 13rem;
+}
+
+.git-hash {
+  inset-inline-end: 0;
 }
 
 @media (max-width: 640px) {

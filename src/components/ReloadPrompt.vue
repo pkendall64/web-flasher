@@ -1,6 +1,7 @@
 <script setup>
 import { onBeforeUnmount } from 'vue'
 import { useRegisterSW } from 'virtual:pwa-register/vue'
+import {t} from '../i18n'
 
 const UPDATE_INTERVAL_MS = 60_000
 let updateInterval = null
@@ -32,14 +33,14 @@ function close() {
 <template>
   <VBanner v-if="offlineReady || needRefresh" class="pwa-toast" elevation="1" color="info">
     <VBannerText v-if="offlineReady">
-      App ready to work offline
+      {{ t('WebFlasher.AppReadyOffline') }}
     </VBannerText>
     <VBannerText v-else>
-      New content available, reload the page?
+      {{ t('WebFlasher.NewContentAvailable') }}
     </VBannerText>
     <template #actions>
-      <VBtn v-if="needRefresh" @click="updateServiceWorker()">Reload</VBtn>
-      <VBtn @click="close()">Dismiss</VBtn>
+      <VBtn v-if="needRefresh" @click="updateServiceWorker()">{{ t('WebFlasher.Reload') }}</VBtn>
+      <VBtn @click="close()">{{ t('WebFlasher.Dismiss') }}</VBtn>
     </template>
   </VBanner>
 </template>
@@ -47,7 +48,7 @@ function close() {
 <style>
 .pwa-toast {
   position: fixed;
-  right: 0;
+  inset-inline-end: 0;
   bottom: 0;
   margin: 16px;
   width: unset;

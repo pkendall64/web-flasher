@@ -6,6 +6,7 @@ import {createVuetify} from 'vuetify'
 
 import './main.css'
 import App from './App.vue'
+import {ready} from './i18n'
 
 const vuetify = createVuetify({
     theme: {
@@ -20,6 +21,8 @@ const vuetify = createVuetify({
         }
     }
 })
+
+await ready
 
 createApp(App)
     .use(vuetify)

@@ -1,6 +1,7 @@
 <script setup>
 import {ref, watch, watchEffect, watchPostEffect} from 'vue';
 import {store} from '../js/state';
+import {t} from '../i18n'
 import {compareSemanticVersions} from '../js/version';
 
 defineProps(['vendorLabel'])
@@ -102,7 +103,7 @@ watch(() => store.target, (v, _oldValue) => {
 })
 
 function flashType() {
-  return flashBranch.value ? 'Branches' : 'Releases'
+  return flashBranch.value ? t('WebFlasher.Branches') : t('FirmwareVersionForm.Releases')
 }
 </script>
 
@@ -113,24 +114,24 @@ function flashType() {
 
   <VContainer max-width="600px">
     <template v-if="store.targetType==='txbp'">
-      <VCardTitle>Transmitter Hardware Selection</VCardTitle>
-      <VCardSubtitle>Choose the transmitter module that is having it's backpack flashed</VCardSubtitle>
+      <VCardTitle>{{ t('WebFlasher.TransmitterHardwareSelection') }}</VCardTitle>
+      <VCardSubtitle>{{ t('WebFlasher.TransmitterHardwareSelectionDescription') }}</VCardSubtitle>
     </template>
     <template v-if="store.targetType==='vrx'">
-      <VCardTitle>VRx Hardware Selection</VCardTitle>
-      <VCardSubtitle>Choose the video receiver type and hardware to be flashed</VCardSubtitle>
+      <VCardTitle>{{ t('WebFlasher.VrxHardwareSelection') }}</VCardTitle>
+      <VCardSubtitle>{{ t('WebFlasher.VrxHardwareSelectionDescription') }}</VCardSubtitle>
     </template>
     <template v-if="store.targetType==='aat'">
-      <VCardTitle>Antenna Tracker Hardware Selection</VCardTitle>
-      <VCardSubtitle>Choose the antenna tracker type and hardware to be flashed</VCardSubtitle>
+      <VCardTitle>{{ t('WebFlasher.AntennaTrackerHardwareSelection') }}</VCardTitle>
+      <VCardSubtitle>{{ t('WebFlasher.AntennaTrackerHardwareSelectionDescription') }}</VCardSubtitle>
     </template>
     <template v-if="store.targetType==='timer'">
-      <VCardTitle>Race Timer Hardware Selection</VCardTitle>
-      <VCardSubtitle>Choose the race timer and hardware to be flashed</VCardSubtitle>
+      <VCardTitle>{{ t('WebFlasher.RaceTimerHardwareSelection') }}</VCardTitle>
+      <VCardSubtitle>{{ t('WebFlasher.RaceTimerHardwareSelectionDescription') }}</VCardSubtitle>
     </template>
     <br>
-    <VSelect :items="versions" v-model="store.version" label="Firmware Version"/>
+    <VSelect :items="versions" v-model="store.version" :label="t('ConfiguratorView.FirmwareVersion')"/>
     <VSelect :items="vendors" v-model="store.vendor" :label="vendorLabel" :disabled="!store.version"/>
-    <VAutocomplete :items="targets" v-model="store.target" label="Hardware Target" :disabled="!store.vendor"/>
+    <VAutocomplete :items="targets" v-model="store.target" :label="t('WebFlasher.HardwareTarget')" :disabled="!store.vendor"/>
   </VContainer>
 </template>

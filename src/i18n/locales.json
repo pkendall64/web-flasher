@@ -1,0 +1,66 @@
+[
+  {
+    "value": "en",
+    "label": "English"
+  },
+  {
+    "value": "it",
+    "label": "Italiano (Italian)"
+  },
+  {
+    "value": "es",
+    "label": "Espa\u00f1ol (Spanish)"
+  },
+  {
+    "value": "zh-CN",
+    "label": "\u7b80\u4f53\u4e2d\u6587 (Simplified Chinese)"
+  },
+  {
+    "value": "ja",
+    "label": "\u65e5\u672c\u8a9e (Japanese)"
+  },
+  {
+    "value": "ko",
+    "label": "\ud55c\uad6d\uc5b4 (Korean)"
+  },
+  {
+    "value": "ru",
+    "label": "\u0420\u0443\u0441\u0441\u043a\u0438\u0439 (Russian)"
+  },
+  {
+    "value": "el",
+    "label": "\u0395\u03bb\u03bb\u03b7\u03bd\u03b9\u03ba\u03ac (Greek)"
+  },
+  {
+    "value": "uk",
+    "label": "\u0423\u043a\u0440\u0430\u0457\u043d\u0441\u044c\u043a\u0430 (Ukrainian)"
+  },
+  {
+    "value": "fr",
+    "label": "Fran\u00e7ais (French)"
+  },
+  {
+    "value": "de",
+    "label": "Deutsch (German)"
+  },
+  {
+    "value": "id",
+    "label": "Bahasa Indonesia (Indonesian)"
+  },
+  {
+    "value": "da",
+    "label": "Dansk (Danish)"
+  },
+  {
+    "value": "pt",
+    "label": "Portugu\u00eas (Portuguese)"
+  },
+  {
+    "value": "pl",
+    "label": "Polski (Polish)"
+  },
+  {
+    "value": "ka",
+    "label": "\u10e5\u10d0\u10e0\u10d7\u10e3\u10da\u10d8 (Georgian)"
+  }
+]

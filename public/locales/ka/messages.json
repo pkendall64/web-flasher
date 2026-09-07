@@ -1,0 +1,42 @@
+{
+  "UserDefineKey": {
+    "HOME_WIFI_PASSWORD": "Wi-Fi-ის პაროლი",
+    "REGULATORY_DOMAIN_AU_915": "915 MHz ავსტრალია",
+    "REGULATORY_DOMAIN_IN_866": "868 MHz ინდოეთი",
+    "TLM_REPORT_INTERVAL_MS": "ტელემეტრიის გამოგზავნის ინტერვალი (მს)",
+    "LOCK_ON_FIRST_CONNECTION": "ბლოკირება პირველივე კავშირზე",
+    "REGULATORY_DOMAIN_EU_868": "868 MHz ევროპა",
+    "HOME_WIFI_SSID": "Wi-Fi-ის სახელი (SSID)",
+    "RCVR_UART_BAUD": "მიმღების UART ბოდის სიხშირე",
+    "REGULATORY_DOMAIN_AU_433": "433 MHz ავსტრალია",
+    "REGULATORY_DOMAIN_EU_433": "433 MHz ევროპა",
+    "UNLOCK_HIGHER_POWER": "მაღალი სიმძლავრის განბლოკვა",
+    "USE_R9MM_R9MINI_SBUS": "R9MM/R9Mini SBUS-ის აქტივაცია",
+    "REGULATORY_DOMAIN_FCC_915": "915 MHz FCC",
+    "UART_INVERTED": "UART-ის ინვერტირება"
+  },
+  "FirmwareVersionForm": {
+    "Releases": "ვერსიები"
+  },
+  "FlashingMethod": {
+    "WIFI": "Wi-Fi",
+    "BetaflightPassthrough": "Betaflight Passthrough",
+    "EdgeTxPassthrough": "EdgeTX-ის გავლა",
+    "Passthrough": "გამჭოლი",
+    "UART": "UART (სერიული პორტი)",
+    "STLink": "STLink"
+  },
+  "ConfiguratorView": {
+    "DownloadLUAScript": "LUA სკრიპტის ჩამოტვირთვა",
+    "FlashAnother": "სხვა მოწყობილობის ჩაწერა",
+    "Back": "უკან",
+    "Flash": "ჩაწერა (Flash)",
+    "FirmwareVersion": "პროგრამული ვერსია"
+  },
+  "FlashingMethodOptions": {
+    "FlashingMethod": "ჩაწერის მეთოდი"
+  },
+  "SerialConnectionForm": {
+    "Connect": "დაკავშირება"
+  }
+}

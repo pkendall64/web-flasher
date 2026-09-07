@@ -1,0 +1,42 @@
+{
+  "UserDefineKey": {
+    "HOME_WIFI_PASSWORD": "Password Wi-Fi",
+    "REGULATORY_DOMAIN_AU_915": "915 MHz Australia",
+    "REGULATORY_DOMAIN_IN_866": "868 MHz India",
+    "TLM_REPORT_INTERVAL_MS": "Intervallo segnale telemetria (ms)",
+    "LOCK_ON_FIRST_CONNECTION": "Blocca dopo la prima connessione",
+    "REGULATORY_DOMAIN_EU_868": "868 MHz Europa",
+    "HOME_WIFI_SSID": "Nome Wi-Fi (SSID)",
+    "RCVR_UART_BAUD": "Baud Rate Ricevitore",
+    "REGULATORY_DOMAIN_AU_433": "433 MHz Australia",
+    "REGULATORY_DOMAIN_EU_433": "433 MHz Europa",
+    "UNLOCK_HIGHER_POWER": "Sblocca potenza maggiore",
+    "USE_R9MM_R9MINI_SBUS": "Abilita SBUS R9MM/R9Mini",
+    "REGULATORY_DOMAIN_FCC_915": "915 MHz FCC",
+    "UART_INVERTED": "Inverti UART"
+  },
+  "FirmwareVersionForm": {
+    "Releases": "Versioni"
+  },
+  "FlashingMethod": {
+    "WIFI": "Wi-Fi",
+    "BetaflightPassthrough": "Passaggio tramite Betaflight",
+    "EdgeTxPassthrough": "Passaggio tramite EdgeTX",
+    "Passthrough": "Passaggio",
+    "UART": "UART (Seriale)",
+    "STLink": "STLink"
+  },
+  "ConfiguratorView": {
+    "DownloadLUAScript": "Scarica LUA Script",
+    "FlashAnother": "Flash di un altro",
+    "Back": "Indietro",
+    "Flash": "Flash",
+    "FirmwareVersion": "Versione firmware"
+  },
+  "FlashingMethodOptions": {
+    "FlashingMethod": "Modalità di Flash"
+  },
+  "SerialConnectionForm": {
+    "Connect": "Connetti"
+  }
+}

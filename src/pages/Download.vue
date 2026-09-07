@@ -4,6 +4,7 @@ import * as zip from "@zip.js/zip.js";
 import FileSaver from "file-saver";
 import { gzip } from 'pako';
 import {store} from "../js/state.js";
+import {t} from '../i18n'
 import {generateFirmware} from "../js/firmware.js";
 import {getDownloadFilename} from "../js/downloadFilename.js";
 
@@ -64,23 +65,16 @@ async function downloadFirmware() {
 
 <template>
   <VContainer max-width="600px">
-    <VCardTitle>Download Firmware File(s)</VCardTitle>
-    <VCardText>The firmware file(s) have been configured for your <b>{{ store.target?.config?.product_name }}</b> with
-      the specified options.
-      <br/>
-      To flash the firmware file to your device, put it into WiFi mode and connect to it via the browser
-      then upload the <b>{{ downloadFilename }}</b> file on the
-      <b>Update</b> tab.
-    </VCardText>
+    <VCardTitle>{{ t('WebFlasher.DownloadFirmwareFiles') }}</VCardTitle>
+    <VCardText>{{ t('WebFlasher.FirmwareConfigured', {device: store.target?.config?.product_name}) }}</VCardText>
+    <VCardText>{{ t('WebFlasher.DownloadInstruction', {filename: downloadFilename}) }}</VCardText>
     <VCardText v-if="store.target.config.platform === 'esp8285'">
-      The firmware file <b>{{ downloadFilename }}</b> should be flashed as-is, do NOT decompress or unzip the file or you <i>will</i>
-      receive an error.
+      {{ t('WebFlasher.Esp8285DownloadWarning', {filename: downloadFilename}) }}
     </VCardText>
     <VCardText v-else-if="zipped">
-      The firmware files are contained in the <b>{{ downloadFilename }}</b> file and should be extracted before being uploaded to
-      the device for flashing.
+      {{ t('WebFlasher.ZipDownloadWarning', {filename: downloadFilename}) }}
     </VCardText>
     <br>
-    <VBtn color="primary" @click="downloadFirmware()">Download</VBtn>
+    <VBtn color="primary" @click="downloadFirmware()">{{ t('WebFlasher.Download') }}</VBtn>
   </VContainer>
 </template>

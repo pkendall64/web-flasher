@@ -1,0 +1,42 @@
+{
+  "UserDefineKey": {
+    "HOME_WIFI_PASSWORD": "Wi-Fi 비밀번호",
+    "REGULATORY_DOMAIN_AU_915": "915 MHz 호주",
+    "REGULATORY_DOMAIN_IN_866": "868 MHz 인도",
+    "TLM_REPORT_INTERVAL_MS": "텔레메트리 보고 간격 (ms)",
+    "LOCK_ON_FIRST_CONNECTION": "첫 연결으로 고정하기",
+    "REGULATORY_DOMAIN_EU_868": "868 MHz 유럽",
+    "HOME_WIFI_SSID": "Wi-Fi 이름 (SSID)",
+    "RCVR_UART_BAUD": "수신기 통신 속도 (baud rate)",
+    "REGULATORY_DOMAIN_AU_433": "433 MHz 호주",
+    "REGULATORY_DOMAIN_EU_433": "433 MHz 유럽",
+    "UNLOCK_HIGHER_POWER": "더 높은 출력 허용하기",
+    "USE_R9MM_R9MINI_SBUS": "R9MM/R9Mini의 SBUS 활성화",
+    "REGULATORY_DOMAIN_FCC_915": "915 MHz FCC",
+    "UART_INVERTED": "UART 신호 반전"
+  },
+  "FirmwareVersionForm": {
+    "Releases": "릴리즈 버전"
+  },
+  "FlashingMethod": {
+    "WIFI": "Wi-Fi",
+    "BetaflightPassthrough": "베타플라이트 패스스루",
+    "EdgeTxPassthrough": "EdgeTX 패스스루",
+    "Passthrough": "패스스루",
+    "UART": "UART (시리얼)",
+    "STLink": "STLink"
+  },
+  "ConfiguratorView": {
+    "DownloadLUAScript": "루아 스크립트 다운로드",
+    "FlashAnother": "다시 플래시하기",
+    "Back": "뒤로",
+    "Flash": "플래시",
+    "FirmwareVersion": "펌웨어 버전"
+  },
+  "FlashingMethodOptions": {
+    "FlashingMethod": "플래시 방법"
+  },
+  "SerialConnectionForm": {
+    "Connect": "연결"
+  }
+}

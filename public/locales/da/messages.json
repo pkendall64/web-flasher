@@ -1,0 +1,42 @@
+{
+  "UserDefineKey": {
+    "HOME_WIFI_PASSWORD": "WiFi adgangskode",
+    "REGULATORY_DOMAIN_AU_915": "915 MHz Australien",
+    "REGULATORY_DOMAIN_IN_866": "868 MHz Indien",
+    "TLM_REPORT_INTERVAL_MS": "Telemetri svar interval (ms)",
+    "LOCK_ON_FIRST_CONNECTION": "Lås efter første forbindelse",
+    "REGULATORY_DOMAIN_EU_868": "868 MHz Europa",
+    "HOME_WIFI_SSID": "WiFi navn (SSID)",
+    "RCVR_UART_BAUD": "Modtager baud hastighed",
+    "REGULATORY_DOMAIN_AU_433": "433 MHz Australien",
+    "REGULATORY_DOMAIN_EU_433": "433 MHz Europa",
+    "UNLOCK_HIGHER_POWER": "Lås op for mulig højere udgangs effekt",
+    "USE_R9MM_R9MINI_SBUS": "Aktiver R9MM/R9Mini SBUS",
+    "REGULATORY_DOMAIN_FCC_915": "915 MHz FCC",
+    "UART_INVERTED": "Invers UART"
+  },
+  "FirmwareVersionForm": {
+    "Releases": "Release"
+  },
+  "FlashingMethod": {
+    "WIFI": "WiFi",
+    "BetaflightPassthrough": "Betaflight gennemstilling",
+    "EdgeTxPassthrough": "EdgeTX gennemstilling",
+    "Passthrough": "Gennemstilling",
+    "UART": "UART (Seriel)",
+    "STLink": "STLink"
+  },
+  "ConfiguratorView": {
+    "DownloadLUAScript": "Hent LUA script",
+    "FlashAnother": "Brænd igen",
+    "Back": "Tilbage",
+    "Flash": "Brænd",
+    "FirmwareVersion": "Firmware version"
+  },
+  "FlashingMethodOptions": {
+    "FlashingMethod": "Brændings metode"
+  },
+  "SerialConnectionForm": {
+    "Connect": "Forbind"
+  }
+}
