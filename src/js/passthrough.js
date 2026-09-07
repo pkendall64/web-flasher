@@ -75,11 +75,11 @@ export class Passthrough {
         for (const key of expected) {
             if (line.trim().indexOf(` = ${key}`) !== -1) {
                 console.log('found')
-                return true
+                return key
             }
         }
         console.log('NOT found')
-        return false
+        return undefined
     }
 
     _sleep(ms) {
@@ -164,12 +164,13 @@ export class Passthrough {
         if (this.half_duplex) {
             waitfor = ['GHST']
         } else {
-            waitfor = ['CRSF', 'ELRS']
+            waitfor = ['CRSF', 'ELRS', 'MAVLINK']
         }
         const serialCheck = []
 
-        if (!await this._validate_serialrx('serialrx_provider', waitfor)) {
-            serialCheck.push('Serial Receiver Protocol is not set to CRSF! Hint: set serialrx_provider = CRSF')
+        const provider = await this._validate_serialrx('serialrx_provider', waitfor)
+        if (!provider) {
+            serialCheck.push('Serial Receiver Protocol is not set to CRSF or MAVLINK! Hint: set serialrx_provider = CRSF or MAVLINK')
         }
         if (!await this._validate_serialrx('serialrx_inverted', ['OFF'])) {
             serialCheck.push('Serial Receiver UART is inverted! Hint: set serialrx_inverted = OFF')
@@ -216,7 +217,9 @@ export class Passthrough {
             throw new PassthroughError()
         }
 
-        await this.transport.write_string(`serialpassthrough ${index} ${this.transport.baudrate}\r\n`)
+        const baudrate = provider === 'MAVLINK' ? 460800 : this.transport.baudrate
+
+        await this.transport.write_string(`serialpassthrough ${index} ${baudrate}\r\n`)
         await this._sleep(200)
 
         try {
