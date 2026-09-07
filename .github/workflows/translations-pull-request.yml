@@ -1,0 +1,36 @@
+name: Translations download
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '00 3 * * 1'
+
+jobs:
+  crowdin-translations-to-pr:
+    name: Create a PR with the latest translations from Crowdin
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download Crowdin translations and create Pull Request
+        uses: crowdin/github-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CROWDIN_PROJECT_ID: ${{ secrets.CROWDIN_PROJECT_ID }}
+          CROWDIN_PERSONAL_TOKEN: ${{ secrets.CROWDIN_PERSONAL_TOKEN }}
+        with:
+          crowdin_branch_name: ${{ github.ref_name }}
+          upload_sources: false
+          upload_translations: false
+          download_translations: true
+          download_translations_args: '--language=it --language=es-ES --language=ko --language=zh-CN --language=ru --language=el --language=fr --language=uk --language=id --language=de --language=da --language=pt-PT --language=pl --language=ka'
+          localization_branch_name: update-translations-crowdin
+          push_translations: true
+          commit_message: 'Update translations'
+          create_pull_request: true
+          pull_request_title: 'Update translations'
+          pull_request_body: |
+            **This is an automated PR.**
+
+            This PR updates the translations from Crowdin.
